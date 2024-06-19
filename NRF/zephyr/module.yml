@@ -1,0 +1,10 @@
+# Copyright (c) 2025 ETH Zurich and University of Bologna
+# SPDX-License-Identifier: Apache-2.0
+---
+name: sensei-sdk
+build:
+  cmake: .
+  kconfig: Kconfig
+  settings:
+    board_root: .
+    dts_root: .

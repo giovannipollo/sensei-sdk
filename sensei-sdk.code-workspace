@@ -1,0 +1,28 @@
+// Copyright (c) 2025 ETH Zurich and University of Bologna
+// SPDX-License-Identifier: Apache-2.0
+
+{
+	"folders": [
+		{
+			"path": "."
+		},
+	],
+	"settings": {
+		"search.exclude": {
+			"**/build*": true,
+			"**/node_modules": true,
+			"**/bower_components": true,
+			"**/*.code-search": true
+		},
+		"nrf-connect.boardRoots": [
+			"${workspaceFolder}/NRF",
+		],
+		"nrf-connect.flash.softreset": true,
+		"nrf-connect.applications": [
+			"${workspaceFolder}/example/ble_bootloader/src_NRF",
+			"${workspaceFolder}/example/led_test/src_NRF",
+			"${workspaceFolder}/example/pmic_test/src_NRF",
+			"${workspaceFolder}/example/sensorShield_scan/src_NRF"
+		]
+	}
+}

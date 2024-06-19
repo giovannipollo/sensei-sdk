@@ -1,0 +1,29 @@
+# Copyright (c) 2022 GreenWaves Technologies
+# SPDX-License-Identifier: Apache-2.0
+
+source "$(GAP_SDK_HOME)/utils/kconfig/Kconfig"
+
+menu "Test ISP + CSI2 HM0360 Menu"
+
+    config SAVING_PICTURE
+        bool "Saving pictures"
+        default y
+        select DRIVER_HOSTFS
+        help
+            Save last taken picture in a file. Available in ppm and jpg formats.
+
+    config APP_LOG
+        bool "Enable logs"
+        default n
+        help
+            Print some additionals informations to help debugging
+
+    if APP_LOG
+        source "$(KCONFIG_UTILS_DIR)/logs.kconfig"
+    endif
+
+    # Shortcut to OV5647 driver options
+    source "$(KCONFIG_DRIVERS_DIR)/camera/drivers_hm0360_options.kconfig"
+
+endmenu
+

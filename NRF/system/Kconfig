@@ -1,0 +1,20 @@
+# Copyright (c) 2025 ETH Zurich and University of Bologna
+# SPDX-License-Identifier: Apache-2.0
+
+menu "System"
+
+menuconfig SENSEI_COMM
+	bool "Enable the SENSEI Communication Subsystem"
+	default n
+	depends on SENSEI
+	help
+	  Enable the SENSEI Communication Subsystem.
+
+menuconfig SENSEI_PWR
+	bool "Enable the SENSEI Power Subsystem"
+	default n
+	depends on SENSEI
+	help
+	  Enable the SENSEI Power Subsystem.
+
+endmenu

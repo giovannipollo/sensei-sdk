@@ -1,0 +1,53 @@
+// Copyright (c) 2025 ETH Zurich and University of Bologna
+// SPDX-License-Identifier: Apache-2.0
+
+ / {
+    sensei_pwr: sensei_pwr {
+		compatible = "gpio-leds";
+
+        gpio_debug_led_pwr: gpio_debug_led_pwr {
+			gpios = <&gpio1 9 GPIO_ACTIVE_HIGH>;
+			label = "DEBUG_LED_EN";
+		};
+	};
+
+    sensei_led: sensei_led {
+		compatible = "gpio-leds";
+        gpio_debug_led_green: gpio_debug_led_green {
+            gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
+            label = "DEBUG_LED_GREEN";
+        };
+        gpio_debug_led_yellow: gpio_debug_led_yellow {
+            gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
+            label = "DEBUG_LED_YELLOW";
+        };
+	};
+
+    buttons {
+		compatible = "gpio-keys";
+		debug_button1: debug_button1 {
+			label = "Debug Button 1";
+			gpios = <&gpio1 0 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+		};
+        debug_button2: debug_button2 {
+			label = "Debug Button 2";
+			gpios = <&gpio0 4 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+		};
+	};
+};
+
+&i2c1 {
+	debug_led: is31fl3194@53 {
+		compatible = "issi,is31fl3194";
+		reg = <0x53>;
+
+		leds {
+			label = "DEBUG RGB LED";
+			color-mapping =
+			<LED_COLOR_ID_RED>,
+			<LED_COLOR_ID_GREEN>,
+				<LED_COLOR_ID_BLUE>;
+			current-limit = <10>;
+		};
+	  };
+};

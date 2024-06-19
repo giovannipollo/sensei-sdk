@@ -1,0 +1,50 @@
+# Copyright (c) 2025 ETH Zurich and University of Bologna
+# SPDX-License-Identifier: Apache-2.0
+
+config BOARD_SENSEI_BASEV1
+    bool "sensei_basev1"
+
+    # Create a dependency to a GAP chip
+    # depends on CHIP_
+    depends on CHIP_GAP9_V2_WLCSP
+
+    # List board hardware here
+    # select HAS_ _HARDWARE
+    select HAS_NRFSPI_HARDWARE
+    select HAS_FLASH_HARDWARE
+    select HAS_MRAM_HARDWARE
+    select HAS_MX25U51245G_HARDWARE
+    select HAS_RAM_HARDWARE
+    select HAS_APS256XXN_HARDWARE
+    select HAS_T3902_HARDWARE
+
+    # Select default drivers
+    select DRIVER_NRFSPI_AS_DEFAULT
+    select DRIVER_APS256XXN_AS_DEFAULT
+    select DRIVER_MX25U51245G_AS_DEFAULT
+
+
+config BOARD_SENSEI_SENSORV1
+    bool "sensei_sensorv1"
+
+    # Create a dependency to a GAP chip
+    depends on BOARD_SENSEI_BASEV1
+
+    # depends on CHIP_
+
+    # List board hardware here
+    # select HAS_ _HARDWARE
+    select HAS_CAMERA_HARDWARE
+    select HAS_HM0360_HARDWARE
+
+
+config BOARD_SENSEI_DEBUGV1
+    bool "sensei_debugv1"
+
+    # Create a dependency to a GAP chip
+    depends on BOARD_SENSEI_BASEV1
+
+    # depends on CHIP_
+
+    # List board hardware here
+    # select HAS_ _HARDWARE

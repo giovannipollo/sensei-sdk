@@ -1,0 +1,86 @@
+version = 1
+
+[[annotations]]
+path = "**/*.md"
+SPDX-FileCopyrightText = "2025 ETH Zurich and University of Bologna"
+SPDX-License-Identifier = "CC-BY-ND-4.0"
+
+[[annotations]]
+path = "**/*.txt"
+SPDX-FileCopyrightText = "2025 ETH Zurich and University of Bologna"
+SPDX-License-Identifier = "CC-BY-ND-4.0"
+
+[[annotations]]
+path = "**/*.patch"
+SPDX-FileCopyrightText = "2025 ETH Zurich and University of Bologna"
+SPDX-License-Identifier = "CC-BY-ND-4.0"
+
+[[annotations]]
+path = "**/*.json"
+SPDX-FileCopyrightText = "2025 ETH Zurich and University of Bologna"
+SPDX-License-Identifier = "CC-BY-ND-4.0"
+
+[[annotations]]
+path = "**/*.tensor"
+SPDX-FileCopyrightText = "2025 ETH Zurich and University of Bologna"
+SPDX-License-Identifier = "CC-BY-ND-4.0"
+
+[[annotations]]
+path = "**/*.tflite"
+SPDX-FileCopyrightText = "2025 ETH Zurich and University of Bologna"
+SPDX-License-Identifier = "CC-BY-ND-4.0"
+
+[[annotations]]
+path = [
+    "NRF/system/third_party/bosch/bme688/*.c",
+    "NRF/system/third_party/bosch/bme688/*.h"
+]
+SPDX-FileCopyrightText = "2023 Bosch Sensortec GmbH"
+SPDX-License-Identifier = "BSD-3-Clause"
+
+[[annotations]]
+path = [
+    "NRF/system/third_party/st/ilps28qsw/*.c",
+    "NRF/system/third_party/st/ilps28qsw/*.h"
+]
+SPDX-FileCopyrightText = "2024 STMicroelectronics"
+SPDX-License-Identifier = "BSD-3-Clause"
+
+[[annotations]]
+path = [
+    "NRF/system/third_party/st/ism330dhcx/*.c",
+    "NRF/system/third_party/st/ism330dhcx/*.h",
+]
+SPDX-FileCopyrightText = "2021 STMicroelectronics"
+SPDX-License-Identifier = "BSD-3-Clause"
+
+[[annotations]]
+path = [
+    "NRF/system/third_party/st/lis2duxs12/*.c",
+    "NRF/system/third_party/st/lis2duxs12/*.h",
+]
+SPDX-FileCopyrightText = "2021 STMicroelectronics"
+SPDX-License-Identifier = "BSD-3-Clause"
+
+[[annotations]]
+path = [
+  "NRF/system/third_party/sensirion/**/*.c",
+  "NRF/system/third_party/sensirion/**/*.h"
+]
+SPDX-FileCopyrightText = "2018 Sensirion AG"
+SPDX-License-Identifier = "BSD-3-Clause"
+
+[[annotations]]
+path = "**/*.ipynb"
+SPDX-FileCopyrightText = "2025 ETH Zurich and University of Bologna"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "**/*.pdf"
+SPDX-FileCopyrightText = "2025 ETH Zurich and University of Bologna"
+SPDX-License-Identifier = "CC-BY-ND-4.0"
+
+[[annotations]]
+path = "**/*.png"
+SPDX-FileCopyrightText = "2025 ETH Zurich and University of Bologna"
+SPDX-License-Identifier = "CC-BY-ND-4.0"

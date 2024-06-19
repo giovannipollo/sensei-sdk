@@ -1,0 +1,13 @@
+# Copyright (c) 2025 ETH Zurich and University of Bologna
+# SPDX-License-Identifier: Apache-2.0
+
+add_subdirectory(max77654)
+add_subdirectory_ifdef(CONFIG_SHIELD_UT_SENSORSHIELD bh1730fvc)
+add_subdirectory_ifdef(CONFIG_SHIELD_UT_SENSORSHIELD st/ilps28qsw)
+add_subdirectory_ifdef(CONFIG_SHIELD_UT_SENSORSHIELD st/ism330dhcx)
+add_subdirectory_ifdef(CONFIG_SHIELD_UT_SENSORSHIELD st/lis2duxs12)
+add_subdirectory_ifdef(CONFIG_SHIELD_UT_SENSORSHIELD as7331)
+add_subdirectory_ifdef(CONFIG_SHIELD_UT_SENSORSHIELD bosch/bme688)
+add_subdirectory_ifdef(CONFIG_SHIELD_UT_SENSORSHIELD sensirion/scd41)
+add_subdirectory_ifdef(CONFIG_SHIELD_UT_SENSORSHIELD sensirion/common)
+add_subdirectory_ifdef(CONFIG_SHIELD_UT_SENSORSHIELD sensirion/sgp41)

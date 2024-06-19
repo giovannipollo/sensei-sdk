@@ -1,0 +1,47 @@
+// Copyright (c) 2025 ETH Zurich and University of Bologna
+// SPDX-License-Identifier: Apache-2.0
+
+/dts-v1/;
+/plugin/;
+
+/{
+    sensei_sensorv1
+    {
+        compatible   = "gwt, gap9";
+        target-path  = "/";
+        __overlay__
+        {
+            hm0360: hm0360
+            {
+                status = "okay";
+                sys
+                {
+                    device_name     = "hm0360";
+                    driver_name     = "hm0360";
+                    device_type     = "camera";
+                    device_board    = "sensei_sensorv1";
+                    device_driver   = "bsp/camera/hm0360.h";
+                };
+                conf
+                {
+                    csi2_itf  = <0>;
+                    cpi_itf   = <0>;
+                    i2c_itf   = <1>;
+                    i3c_itf   = <0>;
+                    format    = "CONFIG_DRIVER_HM0360_FORMAT";
+                    bsp_open  = "&bsp_hm0360_open";
+                    bsp_close = "&bsp_hm0360_close";
+                    bsp_conf  = "NULL";
+                };
+                pads
+                {
+                    i2c_sda = "GAP9_PADMUX(42,0,-1)"; // I2C1 SDA
+                    i2c_scl = "GAP9_PADMUX(43,0,-1)"; // I2C1 SCL
+                    xleep  = "GAP9_PADMUX(50,1,-1)";  // GPIO
+                    xshdown = "GAP9_PADMUX(49,1,-1)"; // GPIO
+                    csi_pwr = "GAP9_PADMUX(59,1,-1)"; // PGIO
+                };
+            };
+        };
+    };
+};

@@ -1,0 +1,6 @@
+# Copyright (c) 2025 ETH Zurich and University of Bologna
+# SPDX-License-Identifier: Apache-2.0
+
+[submodule "NRF/system/third_party/max-m10s/ubxlib"]
+	path = NRF/system/third_party/max-m10s/ubxlib
+	url = https://github.com/u-blox/ubxlib.git

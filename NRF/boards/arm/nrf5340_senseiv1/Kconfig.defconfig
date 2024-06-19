@@ -1,0 +1,20 @@
+# Copyright (c) 2025 ETH Zurich and University of Bologna
+# SPDX-License-Identifier: Apache-2.0
+
+if BOARD_NRF5340_SENSEIv1_CPUAPP
+
+config BOARD
+	default "nrf5340_senseiv1_cpuapp"
+
+
+endif
+
+if BOARD_NRF5340_SENSEIv1_CPUNET
+
+config BOARD
+	default "nrf5340_senseiv1_cpunet"
+
+config BT_CTLR
+	default y if BT
+
+endif

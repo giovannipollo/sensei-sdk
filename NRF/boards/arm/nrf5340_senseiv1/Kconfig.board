@@ -1,0 +1,11 @@
+# Copyright (c) 2025 ETH Zurich and University of Bologna
+# SPDX-License-Identifier: Apache-2.0
+
+config BOARD_NRF5340_SENSEIv1_CPUAPP
+	bool "NRF5340 SENSEIv1 Application MCU"
+	depends on SOC_NRF5340_CPUAPP_QKAA
+
+
+config BOARD_NRF5340_SENSEIv1_CPUNET
+	bool "NRF5340 SENSEIv1 Network MCU"
+	depends on SOC_NRF5340_CPUNET_QKAA

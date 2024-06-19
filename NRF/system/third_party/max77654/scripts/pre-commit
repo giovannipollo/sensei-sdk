@@ -1,0 +1,5 @@
+#!/bin/bash
+# Copyright (c) 2022 Philip Schilk.
+# SPDX-License-Identifier: Apache-2.0
+
+python3 $(dirname $0)/../../scripts/clang_format.py -v

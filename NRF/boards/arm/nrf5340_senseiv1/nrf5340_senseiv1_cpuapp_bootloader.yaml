@@ -1,0 +1,16 @@
+# Copyright (c) 2025 ETH Zurich and University of Bologna
+# SPDX-License-Identifier: Apache-2.0
+---
+identifier: nrf5340_senseiv1_boot
+name: NRF5340 SENSEIv1 Application MCU (Bootloader)
+type: mcu
+arch: arm
+ram: 512
+flash: 1024
+supported:
+  - gpio
+  - i2c
+  - i2s
+  - watchdog
+  - usb_cdc
+  - gpio

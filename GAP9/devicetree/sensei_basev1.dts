@@ -1,0 +1,223 @@
+// Copyright (c) 2025 ETH Zurich and University of Bologna
+// SPDX-License-Identifier: Apache-2.0
+
+/dts-v1/;
+/plugin/;
+
+/{
+    sensei_basev1
+    {
+        compatible = "gwt, gap9";
+        target-path = "/";
+        __overlay__
+        {
+            power_1v8mem: power_1v8mem
+            {
+                status = "okay";
+                sys
+                {
+                    device_name = "mem1v8";
+                    driver_name = "powersupplygpio";
+                    device_type = "powersupply";
+                    device_board = "sensei_basev1";
+                    device_driver = "bsp/powersupply/powersupplygpio.h";
+                };
+                conf
+                {
+                    pad_id = <40>;
+                };
+            };
+            power_1v8mic: power_1v8mic
+            {
+                status = "okay";
+                sys
+                {
+                    device_name = "mic1v8";
+                    driver_name = "powersupplygpio";
+                    device_type = "powersupply";
+                    device_board = "sensei_basev1";
+                    device_driver = "bsp/powersupply/powersupplygpio.h";
+                };
+                conf
+                {
+                    pad_id = <41>;
+                };
+            };
+            nrf: nrf
+            {
+                status = "okay";
+                sys
+                {
+                    device_name = "nrf";
+                    driver_name = "nrfspi";
+                    device_type = "spi";
+                    device_board = "sensei_basev1";
+                    device_driver = "drivers/nrf_spi.h";
+                };
+                conf
+                {
+                    bsp_open = "&bsp_nrfspi_open";
+                    bsp_close = "&bsp_nrfspi_close";
+                    bsp_conf = "NULL";
+                };
+                pads
+                {
+                    irq = "GAP9_PADMUX(58,1,-1)";
+                };
+            };
+            jtag: jtag
+            {
+                status = "okay";
+                sys
+                {
+                    device_name = "jtag";
+                    driver_name = "jtag";
+                    device_type = "io";
+                    device_board = "sensei_basev1";
+                };
+                pads
+                {
+                    tck = "GAP9_PADMUX(81,0,-1)";
+                    tdi = "GAP9_PADMUX(82,0,-1)";
+                    tdo = "GAP9_PADMUX(83,0,-1)";
+                    tms = "GAP9_PADMUX(84,0,-1)";
+                    trst = "GAP9_PADMUX(85,0,-1)";
+                };
+            };
+            printf_uart: printf_uart
+            {
+                status = "okay";
+                sys
+                {
+                    device_name = "printf_uart";
+                    driver_name = "printf_uart";
+                    device_type = "io";
+                    device_board = "sensei_basev1";
+                    device_driver = "pmsis/gap_io.h";
+                };
+                pads
+                {
+                    rx = "GAP9_PADMUX(60,0,-1)";
+                    tx = "GAP9_PADMUX(61,0,-1)";
+                };
+                conf
+                {
+                    uart_itf = <0>;
+                    bsp_open = "&bsp_printf_uart_open";
+                    bsp_close = "NULL";
+                    bsp_conf = "NULL";
+                };
+                defs
+                {
+                    muxgroup_rx = "PI_PAD_MUX_GROUP_UART0_RX";
+                    muxgroup_tx = "PI_PAD_MUX_GROUP_UART0_TX";
+                    // In case of flow control
+                    pad_cts = <62>;
+                    pad_rts = <63>;
+                    muxgroup_cts = "PI_PAD_MUX_GROUP_UART0_CTS";
+                    muxgroup_rts = "PI_PAD_MUX_GROUP_UART0_RTS";
+                };
+            };
+            mx25u51245g: mx25u51245g
+            {
+                status = "okay";
+                sys
+                {
+                    device_name = "mx25u51245g";
+                    driver_name = "mx25u51245g";
+                    device_type = "flash";
+                    device_board = "sensei_basev1";
+                    device_driver = "bsp/flash/mx25u51245g.h";
+                };
+                conf
+                {
+                    spi_itf = <0>;
+                    spi_cs = <0>;
+                    size = <0x04000000>;
+                    sector_size = <4096>;
+                    xip_en = <0>;
+                    baudrate = <200000000>;
+                };
+                pads
+                {
+                    ck = "GAP9_PADMUX(1, 0,-1)";
+                    dq0 = "GAP9_PADMUX(2, 0,-1)";
+                    dq1 = "GAP9_PADMUX(3, 0,-1)";
+                    dq2 = "GAP9_PADMUX(4, 0,-1)";
+                    dq3 = "GAP9_PADMUX(5, 0,-1)";
+                    dq4 = "GAP9_PADMUX(6, 0,-1)";
+                    dq5 = "GAP9_PADMUX(7, 0,-1)";
+                    dq6 = "GAP9_PADMUX(8, 0,-1)";
+                    dq7 = "GAP9_PADMUX(9, 0,-1)";
+                    csn0 = "GAP9_PADMUX(10,0,-1)";
+                    csn1 = "GAP9_PADMUX(11,0,-1)";
+                    rwds = "GAP9_PADMUX(12,0,-1)";
+                };
+            };
+            aps256xxn: aps256xxn
+            {
+                status = "okay";
+                sys
+                {
+                    device_name = "aps256xxn";
+                    driver_name = "aps256xxn";
+                    device_type = "ram";
+                    device_board = "sensei_basev1";
+                    device_driver = "bsp/ram/aps256xxn.h";
+                };
+                conf
+                {
+                    spi_itf = <0>;
+                    spi_cs = <1>;
+                    ram_start = <0>;
+                    ram_size = <0x02000000>;
+                    baudrate = <200000000>;
+                    xip_en = <0>;
+                    reserve_addr_0 = <1>;
+                    mba = <0x02000000>;
+                    ram.aes_conf.enabled = <0>;
+                    ram.aes_conf.qk_en = <0>;
+                };
+                pads
+                {
+                    //ckn = "GAP9_PADMUX(0, 0,-1)";
+                    ck = "GAP9_PADMUX(1, 0,-1)";
+                    dq0 = "GAP9_PADMUX(2, 0,-1)";
+                    dq1 = "GAP9_PADMUX(3, 0,-1)";
+                    dq2 = "GAP9_PADMUX(4, 0,-1)";
+                    dq3 = "GAP9_PADMUX(5, 0,-1)";
+                    dq4 = "GAP9_PADMUX(6, 0,-1)";
+                    dq5 = "GAP9_PADMUX(7, 0,-1)";
+                    dq6 = "GAP9_PADMUX(8, 0,-1)";
+                    dq7 = "GAP9_PADMUX(9, 0,-1)";
+                    csn0 = "GAP9_PADMUX(10,0,-1)";
+                    csn1 = "GAP9_PADMUX(11,0,-1)";
+                    rwds = "GAP9_PADMUX(12,0,-1)";
+                };
+            };
+            micro: micro //Microphone (T5838)
+            {
+                status = "okay";
+                sys
+                {
+                    device_name = "micro";
+                    driver_name = "t3902";
+                    device_type = "microphone";
+                    device_board = "sensei_basev1";
+                };
+                pads
+                {
+                    sai_clk = "GAP9_PADMUX(52,0,-1)";  // SAI1_SCK
+                    sai_data = "GAP9_PADMUX(54,0,-1)";  // SAI1_SDO
+                };
+                defs
+                {
+                    sai_itf = <1>;
+                    pdm_direction = "0b10";  // Mic A is wired on SDO channel. -> Bit 1 is set to 1 (RX)
+                    pdm_channel = <3>; // SAI input PDM left channel id
+                };
+            };
+
+        };
+    };
+};

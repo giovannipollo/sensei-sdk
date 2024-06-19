@@ -1,0 +1,118 @@
+// Copyright (c) 2025 ETH Zurich and University of Bologna
+// SPDX-License-Identifier: Apache-2.0
+
+ / {
+    gpio_external {
+        compatible = "gpio-keys";
+        gpio_ext_gpio0: pca6416a_20p0 {
+            gpios = <&pca6416a_20 0 GPIO_ACTIVE_HIGH>;
+        };
+        gpio_ext_gpio1: pca6416a_20p1 {
+            gpios = <&pca6416a_20 1 GPIO_ACTIVE_HIGH>;
+        };
+        gpio_ext_gpio2: pca6416a_20p2 {
+            gpios = <&pca6416a_20 2 GPIO_ACTIVE_HIGH>;
+        };
+        gpio_ext_gpio3: pca6416a_20p3 {
+            gpios = <&pca6416a_20 3 GPIO_ACTIVE_HIGH>;
+        };
+        gpio_ext_as7331_ready: pca6416a_20p4 {
+            gpios = <&pca6416a_20 4 GPIO_ACTIVE_HIGH>;
+        };
+        gpio_ext_hm0360_clk_en: pca6416a_20p5 {
+            gpios = <&pca6416a_20 5 GPIO_ACTIVE_LOW>;
+        };
+        gpio_ext_hm0360_meter: pca6416a_20p6 {
+            gpios = <&pca6416a_20 6 GPIO_ACTIVE_HIGH>;
+        };
+        gpio_ext_i2c_sgp41_en: pca6416a_20p7 {
+            gpios = <&pca6416a_20 7 GPIO_ACTIVE_HIGH>;
+        };
+        gpio_ext_imu_spi_int1: pca6416a_20p8 {
+            gpios = <&pca6416a_20 8 GPIO_ACTIVE_HIGH>;
+        };
+        gpio_ext_imu_spi_int2: pca6416a_20p9 {
+            gpios = <&pca6416a_20 9 GPIO_ACTIVE_HIGH>;
+        };
+        gpio_ext_i2c_as7331_en: pca6416a_20p10 {
+            gpios = <&pca6416a_20 10 GPIO_ACTIVE_HIGH>;
+        };
+        gpio_ext_bh1730_int: pca6416a_20p11 {
+            gpios = <&pca6416a_20 11 GPIO_ACTIVE_HIGH>;
+        };
+        gpio_ext_i2c_scd41_en: pca6416a_20p12 {
+            gpios = <&pca6416a_20 12 GPIO_ACTIVE_HIGH>;
+        };
+        gpio_ext_m10q_nrst: pca6416a_20p13 {
+            gpios = <&pca6416a_20 13 GPIO_ACTIVE_LOW>;
+        };
+        gpio_ext_m10q_pio4: pca6416a_20p14 {
+            gpios = <&pca6416a_20 14 GPIO_ACTIVE_HIGH>;
+        };
+        gpio_ext_m10q_pio5: pca6416a_20p15 {
+            gpios = <&pca6416a_20 15 GPIO_ACTIVE_HIGH>;
+        };
+    };
+
+	sensei_pwr: sensei_pwr {
+		compatible = "gpio-leds";
+		gpio_scd41_pwr: gpio_scd41_pwr {
+			gpios = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+			label = "SCD41_pwr_sel";
+		};
+		gpio_sgp41_pwr: gpio_sgp41_pwr {
+			gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
+			label = "SGP41_pwr_sel";
+		};
+
+        gpio_debug_signal_1: gpio_debug_signal_1 {
+            gpios = <&gpio0 31 GPIO_ACTIVE_HIGH>;
+            label = "DEBUG_SIGNAL_1";
+        };
+        gpio_debug_signal_2: gpio_debug_signal_2 {
+            gpios = <&gpio0 27 GPIO_ACTIVE_HIGH>;
+            label = "DEBUG_SIGNAl_1";
+        };
+	};
+};
+
+&i2c0 {
+	status = "okay";
+	bme688@76 {
+		compatible = "bosch,bme680";
+		reg = <0x76>;
+		status = "okay";
+	};
+};
+
+&i2c1 {
+	status = "okay";
+    pca6416a_20: pca6416a@20 {
+        compatible = "nxp,pca6416a";
+        reg = < 0x20 >;
+        gpio-controller;
+        ngpios = < 16 >;
+        #gpio-cells = < 2 >;
+    };
+
+    // Use our custom driver
+    // ism330dhcx: ism330dhcx@6a {
+	// 	compatible = "st,ism330dhcx";
+	// 	status = "okay";
+	// 	reg = <0x6A>;
+	// };
+};
+
+/ {
+    cfg-device-gnss-0 {
+        compatible = "u-blox,ubxlib-device-gnss";
+        status = "okay";
+        transport-type = "i2c1";
+        i2c-clock-hertz = <1000>;
+        i2c-already-open;
+        i2c-address = <0x42>;
+        i2c-max-segment-size = <256>;
+        module-type = "U_GNSS_MODULE_TYPE_M10";
+        power-off-to-backup;
+    };
+};

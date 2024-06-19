@@ -1,0 +1,96 @@
+// Copyright (c) 2025 ETH Zurich and University of Bologna
+// SPDX-License-Identifier: Apache-2.0
+
+#include <zephyr/dt-bindings/input/input-event-codes.h>
+
+/ {
+	sensei_pwr: sensei_pwr {
+		compatible = "gpio-leds";
+		gpio_gap9_pwr: gpio_gap9_pwr {
+			gpios = <&gpio1 15 GPIO_ACTIVE_HIGH>;
+			label = "GAP9_pwr_sel";
+		};
+		gpio_led_pwr: gpio_led_pwr {
+			gpios = <&gpio0 22 GPIO_ACTIVE_HIGH>;
+			label = "LED_EN";
+		};
+		gpio_ram_pwr: gpio_ram_pwr {
+			gpios = <&gpio1 14 GPIO_ACTIVE_HIGH>;
+			label = "nRF_RAM_pwr_sel";
+		};
+	};
+	sensei_irq: sensei_irq {
+		compatible = "gpio-keys";
+		debounce-interval-ms = <0>;
+		gpio_pmic_irq: gpio_pmic_irq {
+			gpios = <&gpio0 21 GPIO_ACTIVE_LOW>;
+			label = "PMIC_nIRQ";
+		};
+		gpio_soft_nrst: gpio_soft_nrst {
+			gpios = <&gpio0 26 GPIO_ACTIVE_LOW>;
+			label = "Soft_nRST";
+		};
+	};
+	sensei_comm: sensei_comm {
+		compatible = "gpio-leds";
+		gpio_gap9_i2c_ctrl: gpio_gap9_i2c_ctrl {
+			gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
+			label = "I2C_GAP_SEL";
+		};
+		gpio_gap9_spi_ctrl: gpio_gap9_spi_ctrl {
+			gpios = <&gpio0 20 GPIO_ACTIVE_HIGH>;
+			label = "SPI_GAP_SEL";
+		};
+		gpio_gap9_shared_ctrl: gpio_gap9_shared_ctrl {
+			gpios = <&gpio0 28 GPIO_ACTIVE_HIGH>;
+			label = "SHARED_GPIOs_SEL";
+		};
+		gpio_gap9_irq: gpio_gap9_irq {
+			gpios = <&gpio1 5 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+			label = "GAP9_nIRQ";
+		};
+	};
+
+	rtt0: rtt_chan0 {
+		compatible = "segger,rtt-uart";
+	};
+
+	buttons {
+		compatible = "gpio-keys";
+		button0: button0 {
+			label = "nRF_btn";
+			gpios = <&gpio0 25 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+
+	aliases {
+		mcuboot-button0 = &button0;
+		watchdog0 = &wdt0;
+	};
+};
+
+/* Default shared SRAM planning when building for nRF5340.
+ * This file is included by both nRF5340 CPUAPP (Application MCU)
+ * and nRF5340 CPUNET (Network MCU).
+ * - 64 kB SRAM allocated as Shared memory (sram0_shared)
+ * - Region defined after the image SRAM of Application MCU
+ */
+
+ / {
+	chosen {
+		/* shared memory reserved for the inter-processor communication */
+		zephyr,ipc_shm = &sram0_shared;
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		sram0_shared: memory@20070000 {
+			/* SRAM allocated to shared memory */
+			reg = <0x20070000 0x10000>;
+		};
+	};
+};
