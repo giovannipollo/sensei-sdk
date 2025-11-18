@@ -1,4 +1,4 @@
-# Copyright (c) 2025 ETH Zurich and University of Bologna
+# Copyright (c) 2024 ETH Zurich
 # SPDX-License-Identifier: Apache-2.0
 cmake_minimum_required(VERSION 3.20.0)
 
@@ -24,18 +24,8 @@ project(exg_stream)
 
 target_sources(app PRIVATE
     main.c
-    bluetooth.c
     bsp/pwr_bsp.c
-    ble_appl.c
-    ads_appl.c
-    ads_spi.c
-    board_streaming.c
-    ppg_appl.c
-    i2c_helpers.c
-    lis2duxs12_sensor.c
-    lis2duxs12_reg.c
 )
-
 target_include_directories(app PRIVATE
     .
 )
