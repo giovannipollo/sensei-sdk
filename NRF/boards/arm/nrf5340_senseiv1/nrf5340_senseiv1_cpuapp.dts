@@ -37,6 +37,16 @@
 		i2cb = &i2c1;
 		uartgap = &uart_gap;
 	};
+	buttons{
+		gpio_lis2duxs12_int1: gpio_lis2duxs12_int1 {
+			gpios = <&gpio0 23 GPIO_ACTIVE_HIGH>;
+			label = "LIS2DUXS12_INT";
+		};
+		gpio_soft_rst: gpio_soft_rst {
+			gpios = <&gpio0 26 GPIO_ACTIVE_HIGH>;
+			label = "BUTTON_SOFT_INT";
+		};
+	};
 };
 
 #include "nrf5340_senseiv1_shared.dtsi"
