@@ -28,51 +28,47 @@
 
 #include <stdio.h>
 #include <string.h>
-
 #include <zephyr/device.h>
-#include <zephyr/kernel.h>
+#include <zephyr/devicetree.h>
 #include <zephyr/sys/ring_buffer.h>
-
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/drivers/led.h>
+#include <zephyr/drivers/sensor.h>
 #include <zephyr/drivers/uart.h>
-
+#include <zephyr/bluetooth/bluetooth.h>
+#include <zephyr/bluetooth/gatt.h>
+#include <zephyr/bluetooth/hci.h>
+#include <zephyr/bluetooth/uuid.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/logging/log_ctrl.h>
-
 #include <zephyr/usb/usb_device.h>
 #include <zephyr/usb/usbd.h>
+#include <zephyr/kernel.h>
+#include <zephyr/drivers/gpio.h>
 
-#include "bsp/pwr_bsp.h"
 #include "pwr/pwr.h"
+#include "bsp/pwr_bsp.h"
+#include "pwr/pwr_common.h"
+#include "pwr/thread_pwr.h"
+
+#include "common.h"
+// #include "ble_appl.h"
+// #include "ads_appl.h"
+// #include "ads_spi.h"
+// #include "board_streaming.h"
+#include "ppg_appl.h"
+// #include "lis2duxs12_sensor.h"
+
+
 
 /* 1000 msec = 1 sec */
 #define SLEEP_TIME_MS 3000
-
-/* Structure describing a color by its component values and name */
-struct color_data {
-  uint8_t r, g, b;
-  const char *name;
-};
-
-/* The sequence of colors the RGB LED will display */
-static const struct color_data color_sequence[] = {
-    {0xFF, 0x00, 0x00, "Red"},   {0x00, 0xFF, 0x00, "Green"},  {0x00, 0x00, 0xFF, "Blue"},
-    {0xFF, 0xFF, 0xFF, "White"}, {0xFF, 0xFF, 0x00, "Yellow"}, {0xFF, 0x00, 0xFF, "Purple"},
-    {0x00, 0xFF, 0xFF, "Cyan"},  {0xF4, 0x79, 0x20, "Orange"},
-};
-
-#define GPIO_NODE_gap9_i2c_ctrl DT_NODELABEL(gpio_gap9_i2c_ctrl)
 
 /*
  * A build error on this line means your board is unsupported.
  * See the sample documentation for information on how to fix this.
  */
 static const struct device *const uart_dev = DEVICE_DT_GET_ONE(zephyr_cdc_acm_uart);
-static const struct device *const led = DEVICE_DT_GET_ANY(issi_is31fl3194);
-static const struct gpio_dt_spec gpio_p0_6_gap9_i2c_ctrl = GPIO_DT_SPEC_GET(GPIO_NODE_gap9_i2c_ctrl, gpios);
 
-LOG_MODULE_REGISTER(main);
+LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
 int main(void) {
   int ret = 0;
@@ -89,11 +85,6 @@ int main(void) {
   }
   pwr_start();
 
-  if (!device_is_ready(led)) {
-    LOG_ERR("LED device not ready");
-    return 0;
-  }
-
   if (!device_is_ready(uart_dev)) {
     LOG_ERR("CDC ACM device not ready");
     return 0;
@@ -104,27 +95,12 @@ int main(void) {
   }
   LOG_INF("USB enabled");
 
-  for (size_t i = 0; i < ARRAY_SIZE(color_sequence); i++) {
-    ret = led_set_color(led, 0, 3, &(color_sequence[i].r));
-    if (ret) {
-      LOG_ERR("Failed to set color");
-      return 0;
-    }
-    k_msleep(333);
-  }
-
-  k_msleep(100);
-  if (gpio_pin_set_dt(&gpio_p0_6_gap9_i2c_ctrl, 1) < 0) {
-    LOG_ERR("GAP9 I2C GPIO configuration error");
-    return 0;
-  }
-
   gap9_pwr(true);
   LOG_INF("GAP9 powered up");
 
   while (1) {
     k_msleep(SLEEP_TIME_MS);
-    printf("Sleeping..\r\n");
+    LOG_INF("Sleeping...");
   }
   return 0;
 }
