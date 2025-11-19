@@ -35,8 +35,8 @@ target_sources(app PRIVATE
     # board_streaming.c
     ppg_appl.c
     i2c_helpers.c
-    # lis2duxs12_sensor.c
-    # lis2duxs12_reg.c
+    lis2duxs12_sensor.c
+    lis2duxs12_reg.c
 )
 target_include_directories(app PRIVATE
     .
