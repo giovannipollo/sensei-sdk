@@ -38,7 +38,7 @@
 
 #include "common.h"
 
-LOG_MODULE_DECLARE(sensors, LOG_LEVEL_ERR);
+LOG_MODULE_DECLARE(sensors, LOG_LEVEL_INF);
 
 /* Define stack sizes and priorities */
 #define IMU_STACK_SIZE 1024
@@ -63,7 +63,7 @@ void lis2duxs12_irq_callback(const struct device *dev, struct gpio_callback *cb,
   k_sem_give(&imu_int1);
 }
 
-void imu_receive_thread_temp_tap(void *arg1, void *arg2, void *arg3) {
+void imu_receive_thread_temp_tap() {
   k_sleep(K_MSEC(2000));
   // init_lis2duxs12();
   while (1) {
@@ -74,10 +74,14 @@ void imu_receive_thread_temp_tap(void *arg1, void *arg2, void *arg3) {
     }
   }
 }
-void imu_receive_thread(void *arg1, void *arg2, void *arg3) {
-  k_sleep(K_MSEC(2000));
+void imu_receive_thread() {
+  LOG_INF("IMU receive thread started");
+  k_msleep(2000);
+  LOG_INF("Initializing LIS2DUXS12...");
   init_lis2duxs12();
+  LOG_INF("Enabling accelerometer sampling...");
   enable_acc_sampling();
+  LOG_INF("LIS2DUXS12 setup complete, entering main loop...");
   while (1) {
     k_sem_take(&imu_int1, K_FOREVER);
 
@@ -86,29 +90,31 @@ void imu_receive_thread(void *arg1, void *arg2, void *arg3) {
     if (error != NO_ERROR) {
       LOG_ERR(" * Error %d getting data", error);
     } else {
-      LOG_INF(" - Acceleration X                      : % 7.2f mg" SPACES, data_xl.mg[0]);
-      LOG_INF(" - Acceleration Y                      : % 7.2f mg" SPACES, data_xl.mg[1]);
-      LOG_INF(" - Acceleration Z                      : % 7.2f mg" SPACES, data_xl.mg[2]);
+      LOG_DBG(" - Acceleration X                      : % 7.2f mg" SPACES, data_xl.mg[0]);
+      LOG_DBG(" - Acceleration Y                      : % 7.2f mg" SPACES, data_xl.mg[1]);
+      LOG_DBG(" - Acceleration Z                      : % 7.2f mg" SPACES, data_xl.mg[2]);
     }
 
     error = lis2duxs12_outt_data_get(&lis2duxs12_ctx, &md, &data_temp);
     if (error != NO_ERROR) {
       LOG_ERR(" * Error %d getting temperature", error);
     } else {
-      LOG_INF(" - Temperature                         : %3.2f °C" SPACES, data_temp.heat.deg_c);
+      LOG_DBG(" - Temperature                         : %3.2f °C" SPACES, data_temp.heat.deg_c);
     }
 
-    LOG_INF("LIS2DUXS12 interrupt triggered");
+    LOG_DBG("LIS2DUXS12 interrupt triggered");
   }
 }
 
 void init_lis2duxs12(void) {
-
+  LOG_INF("Starting LIS2DUXS12 initialization...");
   // Configure the interrupt pin
   if (!device_is_ready(lis2duxs12_int_gpio.port)) {
     LOG_ERR("GPIO device %s is not ready", lis2duxs12_int_gpio.port->name);
     return;
   }
+
+  LOG_INF("Configuring LIS2DUXS12 interrupt pin %d...", lis2duxs12_int_gpio.pin);
 
   int ret = gpio_pin_configure_dt(&lis2duxs12_int_gpio, GPIO_INPUT);
   if (ret < 0) {
@@ -116,14 +122,19 @@ void init_lis2duxs12(void) {
     return;
   }
 
+  LOG_INF("Configuring LIS2DUXS12 interrupt...");
+
   ret = gpio_pin_interrupt_configure_dt(&lis2duxs12_int_gpio, GPIO_INT_EDGE_TO_ACTIVE);
   if (ret < 0) {
     LOG_ERR("Failed to configure interrupt on GPIO pin %d (error %d)", lis2duxs12_int_gpio.pin, ret);
     return;
   }
 
+  LOG_INF("Setting up LIS2DUXS12 interrupt callback...");
+
   gpio_init_callback(&lis2duxs12_cb_data, lis2duxs12_irq_callback, BIT(lis2duxs12_int_gpio.pin));
   gpio_add_callback(lis2duxs12_int_gpio.port, &lis2duxs12_cb_data);
+
   LOG_INF("Interrupt configured on %s pin %d", lis2duxs12_int_gpio.port->name, lis2duxs12_int_gpio.pin);
 
   int16_t error = NO_ERROR;
@@ -141,6 +152,8 @@ void init_lis2duxs12(void) {
     LOG_ERR("Error exiting deep power down: %d", error);
   }
 
+  LOG_INF("LIS2DUXS12 exited deep power down");
+
   /* Read device ID */
   uint8_t sensor_id;
   error = lis2duxs12_device_id_get(&lis2duxs12_ctx, &sensor_id);
@@ -150,17 +163,24 @@ void init_lis2duxs12(void) {
     LOG_INF("LIS2DUXS12 ID: 0x%02X", sensor_id);
   }
 
+  LOG_INF("Resetting LIS2DUXS12 to default configuration...");
+
   /* Reset sensor */
   error = lis2duxs12_init_set(&lis2duxs12_ctx, LIS2DUXS12_RESET);
   if (error != NO_ERROR) {
     LOG_ERR("Error during reset: %d", error);
     return;
   }
+
+  LOG_INF("Waiting for LIS2DUXS12 reset to complete...");
+
   /* Wait for reset to complete */
   lis2duxs12_status_t status;
   do {
     lis2duxs12_status_get(&lis2duxs12_ctx, &status);
   } while (status.sw_reset);
+
+  LOG_INF("LIS2DUXS12 reset complete.");
 }
 
 void enable_acc_sampling() {
@@ -274,16 +294,16 @@ void test_lis2duxs12() {
   if (error != NO_ERROR) {
     LOG_ERR(" * Error %d getting data", error);
   } else {
-    LOG_INF(" - Acceleration X                      : % 7.2f mg" SPACES, data_xl.mg[0]);
-    LOG_INF(" - Acceleration Y                      : % 7.2f mg" SPACES, data_xl.mg[1]);
-    LOG_INF(" - Acceleration Z                      : % 7.2f mg" SPACES, data_xl.mg[2]);
+    LOG_DBG(" - Acceleration X                      : % 7.2f mg" SPACES, data_xl.mg[0]);
+    LOG_DBG(" - Acceleration Y                      : % 7.2f mg" SPACES, data_xl.mg[1]);
+    LOG_DBG(" - Acceleration Z                      : % 7.2f mg" SPACES, data_xl.mg[2]);
   }
 
   error = lis2duxs12_outt_data_get(&lis2duxs12_ctx, &md, &data_temp);
   if (error != NO_ERROR) {
     LOG_ERR(" * Error %d getting temperature", error);
   } else {
-    LOG_INF(" - Temperature                         : %3.2f °C" SPACES, data_temp.heat.deg_c);
+    LOG_DBG(" - Temperature                         : %3.2f °C" SPACES, data_temp.heat.deg_c);
   }
 }
 int lis2duxs12_enable_double_tap(void) {

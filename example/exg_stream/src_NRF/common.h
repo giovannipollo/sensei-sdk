@@ -26,7 +26,10 @@
  * limitations under the License.
  */
 
- #include <stdint.h>
+#ifndef COMMON_H
+#define COMMON_H
+
+#include <stdint.h>
 
  
 /*Board States*/
@@ -66,4 +69,4 @@ void send_data_ble(char *data_array, int16_t length);
 void update_status(struct sensor_value *temp, struct sensor_value *press, struct sensor_value *humidity,
                    struct sensor_value *gas_res);
 
-
+#endif // COMMON_H

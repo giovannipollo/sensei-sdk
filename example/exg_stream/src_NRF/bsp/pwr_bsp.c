@@ -104,7 +104,7 @@ void soft_rst_irq_callback(const struct device *dev,
  */
 void battery_update_thread(void *arg1, void *arg2, void *arg3)
 {
-
+  LOG_INF("Battery update thread started");
   k_sleep(K_MSEC(2000)); // Wait for 2 seconds before starting the thread
 
   while (1) {

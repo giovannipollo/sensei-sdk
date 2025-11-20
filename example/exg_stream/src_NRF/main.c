@@ -56,24 +56,14 @@
 #include "common.h"
 #include "lis2duxs12_sensor.h"
 #include "ppg_appl.h"
+#include "state_machine.h"
 
-/* 1000 msec = 1 sec */
-#define SLEEP_TIME_MS 3000
-
-/*
- * A build error on this line means your board is unsupported.
- * See the sample documentation for information on how to fix this.
- */
 static const struct device *const uart_dev = DEVICE_DT_GET_ONE(zephyr_cdc_acm_uart);
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
 #define UART_BUF_SIZE 40
 #define MINIMAL_STACK_SIZE 1024
-
-// Add after other defines
-#define STATE_MACHINE_STACK_SIZE 2048
-#define STATE_MACHINE_PRIORITY 7
 
 struct uart_data_t {
   void *fifo_reserved;
@@ -88,100 +78,6 @@ void z_fatal_error(unsigned int reason, const z_arch_esf_t *esf) {
   }
 }
 
-// Function pointers for state behavior
-typedef void (*StateFuncEntry)(void);
-typedef void (*StateFuncRun)(void);
-typedef void (*StateFuncExit)(void);
-
-// State structure
-typedef struct {
-  StateFuncEntry entry;
-  StateFuncRun run;
-  StateFuncExit exit;
-} StateMachine_t;
-
-// Global variable to track the current state
-static State_t current_state = S_LOW_POWER_CONNECTED; // Set initial state
-
-// ==================== State Functions ====================
-
-// S_SHUTDOWN
-static void s_shutdown_entry(void) { LOG_INF("Entering SHUTDOWN state"); }
-static void s_shutdown_run(void) { /* Logic for shutdown */ }
-static void s_shutdown_exit(void) { LOG_INF("Exiting SHUTDOWN state"); }
-
-// S_DEEPSLEEP
-static void s_deepsleep_entry(void) { LOG_INF("Entering DEEPSLEEP state"); }
-static void s_deepsleep_run(void) { /* Logic for deep sleep */ }
-static void s_deepsleep_exit(void) { LOG_INF("Exiting DEEPSLEEP state"); }
-
-// S_LOW_POWER_CONNECTED
-static void s_low_power_connected_entry(void) { LOG_INF("Entering LOW POWER CONNECTED state"); }
-static void s_low_power_connected_run(void) { /* Logic for low power */ }
-static void s_low_power_connected_exit(void) { LOG_INF("Exiting LOW POWER CONNECTED state"); }
-
-// S_NORDIC_STREAM
-static void s_nordic_stream_entry(void) {
-
-  // Depending on the ExG shield to use...
-  // pwr_ads_on_bipolar();
-  pwr_ads_on_unipolar();
-}
-static void s_nordic_stream_run(void) { loop_streaming(); }
-static void s_nordic_stream_exit(void) {
-  // LOG_INF("Exiting NORDIC STREAM state");
-  pwr_ads_off();
-}
-
-// S_GAP_CTRL
-static void s_gap_ctrl_entry(void) { LOG_INF("Entering GAP CTRL state"); }
-static void s_gap_ctrl_run(void) { /* BLE control logic */ }
-static void s_gap_ctrl_exit(void) { LOG_INF("Exiting GAP CTRL state"); }
-
-// ==================== State Machine Definition ====================
-static const StateMachine_t state_machine[S_MAX_STATES] = {
-    {s_shutdown_entry, s_shutdown_run, s_shutdown_exit},
-    {s_deepsleep_entry, s_deepsleep_run, s_deepsleep_exit},
-    {s_low_power_connected_entry, s_low_power_connected_run, s_low_power_connected_exit},
-    {s_nordic_stream_entry, s_nordic_stream_run, s_nordic_stream_exit},
-    {s_gap_ctrl_entry, s_gap_ctrl_run, s_gap_ctrl_exit}};
-
-// set state machine state
-void set_SM_state(State_t new_state) {
-  if (new_state < S_MAX_STATES) {
-    state_machine[current_state].exit();  // Call exit function of current state
-    current_state = new_state;            // Update current state
-    state_machine[current_state].entry(); // Call entry function of new state
-  } else {
-    LOG_ERR("Invalid state: %d", new_state);
-  }
-}
-
-// Get current state
-State_t get_SM_state(void) {
-  return current_state; // Return the current state
-}
-
-// Add state machine synchronization
-static K_SEM_DEFINE(state_machine_ready_sem, 0, 1);
-
-// Add state machine thread function
-static void state_machine_thread(void *arg1, void *arg2, void *arg3) {
-  // Wait for initialization to complete
-  LOG_INF("State machine thread wants to start");
-  k_sem_take(&state_machine_ready_sem, K_FOREVER);
-  LOG_INF("State machine thread started");
-
-  while (1) {
-    state_machine[current_state].run();
-    // k_msleep(1);  // Run every second
-    k_cpu_idle(); // Use idle instead of sleep to stay responsive
-  }
-}
-
-K_THREAD_DEFINE(state_machine_thread_id, STATE_MACHINE_STACK_SIZE, state_machine_thread, NULL, NULL, NULL,
-                STATE_MACHINE_PRIORITY, 0, 0);
-
 int main(void) {
   int ret = 0;
 
@@ -195,7 +91,10 @@ int main(void) {
   if (pwr_init()) {
     LOG_ERR("PWR Init failed!");
   }
-  pwr_start();
+  // pwr_start();
+  if (pwr_bsp_start()) {
+    LOG_ERR("PWR BSP Start failed!");
+  }
 
   if (!device_is_ready(uart_dev)) {
     LOG_ERR("CDC ACM device not ready");
@@ -207,22 +106,34 @@ int main(void) {
   }
   LOG_INF("USB enabled");
 
-  init_lis2duxs12();
+  // LOG_INF("Initializing LIS2DUXS12...");
+  // init_lis2duxs12();
+  LOG_INF("Enabling charge...");
   pwr_charge_enable();
+  LOG_INF("Initializing ADS...");
   ret = ADS_dr_init();
+  LOG_INF("Powering ADS unipolar...");
   pwr_ads_on_unipolar();
 
+  LOG_INF("Initializing SPI...");
   init_SPI();
 
+  LOG_INF("Powering GAP9...");
   gap9_pwr(true);
   LOG_INF("GAP9 powered up");
 
   struct uart_data_t *buf = k_malloc(sizeof(*buf));
+  LOG_INF("Initializing BLE comm...");
   init_ble_comm();
+  LOG_INF("Starting BLE adverts...");
   start_bluetooth_adverts();
 
-  // Signal state machine can start
-  k_sem_give(&state_machine_ready_sem);
+  // Initialize and start state machine
+  LOG_INF("Initializing state machine...");
+  state_machine_init();
+  LOG_INF("Starting state machine...");
+  state_machine_start();
+  LOG_INF("State machine initialization complete");
 
   while (1) {
     k_msleep(1000); // Main thread can sleep now, all the work is handeled by other threads
