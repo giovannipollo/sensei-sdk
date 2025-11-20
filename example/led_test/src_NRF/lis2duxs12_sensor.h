@@ -37,7 +37,6 @@ void test_lis2duxs12();
 
 int lis2duxs12_enable_double_tap(void);
 
-
 extern lis2duxs12_xl_data_t data_xl;
 extern lis2duxs12_outt_data_t data_temp;
 
