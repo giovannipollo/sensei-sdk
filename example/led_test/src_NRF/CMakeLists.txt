@@ -27,12 +27,12 @@ project(pmic_test)
 
 target_sources(app PRIVATE
     main.c
-    # bluetooth.c
+    bluetooth.c
     bsp/pwr_bsp.c
-    # ble_appl.c
-    # ads_appl.c
-    # ads_spi.c
-    # board_streaming.c
+    ble_appl.c
+    ads_appl.c
+    ads_spi.c
+    board_streaming.c
     ppg_appl.c
     i2c_helpers.c
     lis2duxs12_sensor.c
