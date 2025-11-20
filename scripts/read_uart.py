@@ -4,7 +4,8 @@ import serial.tools.list_ports
 import time
 import sys
 
-PORT = "/dev/tty.usbmodem212301"
+PORT = "/dev/tty.usbmodem212401"
+
 BAUD = 115200
 RECONNECT_DELAY = 2.0   # seconds between reconnect attempts
 READ_TIMEOUT = 0.5      # seconds: makes read non-blocking-ish

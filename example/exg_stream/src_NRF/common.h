@@ -26,27 +26,36 @@
  * limitations under the License.
  */
 
-#include <stdint.h>
+ #include <stdint.h>
 
+ 
 /*Board States*/
-#define STATE_STREAMING_NORDIC 50
-#define STATE_GAP9_MASTER 60
-#define STATE_SWITCH 70
-#define STATE_PROGRAM_WOLF 80
-#define STATE_ES_QUALITY 90
+#define STATE_STREAMING_NORDIC          50
+#define STATE_GAP9_MASTER               60
+#define STATE_SWITCH                    70
+#define STATE_PROGRAM_WOLF              80
+#define STATE_ES_QUALITY                90
 
-#define FIRMWARE_VERSION '2'
+#define FIRMWARE_VERSION  '2'
 #define FIRMWARE_REVISION 'c'
 
-#define HARDWARE_VERSION '2'
+#define HARDWARE_VERSION  '2'
 #define HARDWARE_REVISION 'b'
 
 #define SPACES "                                                               "
 
 #define NO_ERROR 0
 
+
 // List of states
-typedef enum { S_SHUTDOWN, S_DEEPSLEEP, S_LOW_POWER_CONNECTED, S_NORDIC_STREAM, S_GAP_CTRL, S_MAX_STATES } State_t;
+typedef enum {
+    S_SHUTDOWN,
+    S_DEEPSLEEP,
+    S_LOW_POWER_CONNECTED,
+    S_NORDIC_STREAM,
+    S_GAP_CTRL,
+    S_MAX_STATES
+  } State_t;
 
 void set_SM_state(State_t new_state);
 State_t get_SM_state(void);
@@ -56,3 +65,5 @@ void send_data_ble(char *data_array, int16_t length);
 
 void update_status(struct sensor_value *temp, struct sensor_value *press, struct sensor_value *humidity,
                    struct sensor_value *gas_res);
+
+

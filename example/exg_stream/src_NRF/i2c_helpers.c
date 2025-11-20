@@ -36,7 +36,7 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/logging/log_ctrl.h>
 
-LOG_MODULE_REGISTER(sensors, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(sensors, LOG_LEVEL_INF);
 
 // static const struct device *const i2c_a = DEVICE_DT_GET(DT_ALIAS(i2ca));
 static const struct device *const i2c_b = DEVICE_DT_GET(DT_ALIAS(i2cb));

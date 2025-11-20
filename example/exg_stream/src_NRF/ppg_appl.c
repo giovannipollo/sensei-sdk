@@ -37,7 +37,7 @@
 
 // If you use SPI for other sensors, include its header here.
 // #include "ADSXXXX_SPI.h"
-LOG_MODULE_REGISTER(ppg_appl, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(ppg_appl, LOG_LEVEL_INF);
 
 /* Define stack sizes and priorities */
 #define PPG_STACK_SIZE 2048

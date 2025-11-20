@@ -38,7 +38,7 @@
 
 #include "common.h"
 
-LOG_MODULE_DECLARE(sensors, LOG_LEVEL_DBG);
+LOG_MODULE_DECLARE(sensors, LOG_LEVEL_ERR);
 
 /* Define stack sizes and priorities */
 #define IMU_STACK_SIZE 1024
@@ -76,7 +76,7 @@ void imu_receive_thread_temp_tap(void *arg1, void *arg2, void *arg3) {
 }
 void imu_receive_thread(void *arg1, void *arg2, void *arg3) {
   k_sleep(K_MSEC(2000));
-  // init_lis2duxs12();
+  init_lis2duxs12();
   enable_acc_sampling();
   while (1) {
     k_sem_take(&imu_int1, K_FOREVER);
@@ -107,19 +107,19 @@ void init_lis2duxs12(void) {
   // Configure the interrupt pin
   if (!device_is_ready(lis2duxs12_int_gpio.port)) {
     LOG_ERR("GPIO device %s is not ready", lis2duxs12_int_gpio.port->name);
-    return false;
+    return;
   }
 
   int ret = gpio_pin_configure_dt(&lis2duxs12_int_gpio, GPIO_INPUT);
   if (ret < 0) {
     LOG_ERR("Failed to configure GPIO pin %d (error %d)", lis2duxs12_int_gpio.pin, ret);
-    return false;
+    return;
   }
 
   ret = gpio_pin_interrupt_configure_dt(&lis2duxs12_int_gpio, GPIO_INT_EDGE_TO_ACTIVE);
   if (ret < 0) {
     LOG_ERR("Failed to configure interrupt on GPIO pin %d (error %d)", lis2duxs12_int_gpio.pin, ret);
-    return false;
+    return;
   }
 
   gpio_init_callback(&lis2duxs12_cb_data, lis2duxs12_irq_callback, BIT(lis2duxs12_int_gpio.pin));
