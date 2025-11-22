@@ -30,7 +30,7 @@
 #define COMMON_H
 
 #include <stdint.h>
-
+#include "state_machine.h"
  
 /*Board States*/
 #define STATE_STREAMING_NORDIC          50
@@ -49,19 +49,6 @@
 
 #define NO_ERROR 0
 
-
-// List of states
-typedef enum {
-    S_SHUTDOWN,
-    S_DEEPSLEEP,
-    S_LOW_POWER_CONNECTED,
-    S_NORDIC_STREAM,
-    S_GAP_CTRL,
-    S_MAX_STATES
-  } State_t;
-
-void set_SM_state(State_t new_state);
-State_t get_SM_state(void);
 
 void start_bluetooth_adverts(void);
 void send_data_ble(char *data_array, int16_t length);
