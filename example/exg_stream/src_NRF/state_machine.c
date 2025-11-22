@@ -113,7 +113,7 @@ static void s_shutdown_entry(void) { LOG_INF("Entering SHUTDOWN state"); }
  *
  * Placeholder for shutdown logic. Could include final cleanup operations.
  */
-static void s_shutdown_run(void) { LOG_INFO("Running SHUTDOWN state"); }
+static void s_shutdown_run(void) { LOG_DBG("Running SHUTDOWN state"); }
 
 /**
  * @brief Exit callback for SHUTDOWN state
@@ -138,7 +138,7 @@ static void s_deepsleep_entry(void) { LOG_INF("Entering DEEPSLEEP state"); }
  *
  * Placeholder for deep sleep logic. Could implement actual sleep routines.
  */
-static void s_deepsleep_run(void) { LOG_INFO("Running DEEPSLEEP state"); }
+static void s_deepsleep_run(void) { LOG_DBG("Running DEEPSLEEP state"); }
 
 /**
  * @brief Exit callback for DEEPSLEEP state
@@ -163,7 +163,7 @@ static void s_low_power_connected_entry(void) { LOG_INF("Entering LOW POWER CONN
  *
  * Placeholder for low power connection maintenance logic.
  */
-static void s_low_power_connected_run(void) { LOG_INFO("Running LOW POWER CONNECTED state"); }
+static void s_low_power_connected_run(void) { LOG_DBG("Running LOW POWER CONNECTED state"); }
 
 /**
  * @brief Exit callback for LOW_POWER_CONNECTED state
@@ -179,14 +179,22 @@ static void s_low_power_connected_exit(void) { LOG_INF("Exiting LOW POWER CONNEC
 /**
  * @brief Entry callback for NORDIC_STREAM state
  *
- * Powers on the ADS (Analog-to-Digital Sensor) in unipolar mode for ExG
- * signal acquisition. Choose between bipolar and unipolar based on the
- * ExG shield configuration.
+ * Powers on the ADS (Analog-to-Digital Sensor) for ExG signal acquisition.
+ * The mode (bipolar or unipolar) is determined by CONFIG_ADS_USE_BIPOLAR_MODE.
+ *
+ * - Bipolar mode (EMG): Differential measurement between two electrodes
+ * - Unipolar mode (EEG): Single-ended measurement referenced to ground
  */
 static void s_nordic_stream_entry(void) {
-  /* Depending on the ExG shield to use... */
-  /* pwr_ads_on_bipolar(); */
+#ifdef CONFIG_ADS_USE_BIPOLAR_MODE
+  /* Bipolar mode - differential measurement */
+  LOG_INF("Powering ADS bipolar");
+  pwr_ads_on_bipolar();
+#else
+  /* Unipolar mode - single-ended measurement (default) */
+  LOG_INF("Powering ADS unipolar");
   pwr_ads_on_unipolar();
+#endif
 }
 
 /**
@@ -222,7 +230,7 @@ static void s_gap_ctrl_entry(void) { LOG_INF("Entering GAP CTRL state"); }
  *
  * Placeholder for BLE GAP control logic (advertising, connections, etc.).
  */
-static void s_gap_ctrl_run(void) { LOG_INFO("Running GAP CTRL state"); }
+static void s_gap_ctrl_run(void) { LOG_DBG("Running GAP CTRL state"); }
 
 /**
  * @brief Exit callback for GAP_CTRL state
@@ -295,8 +303,10 @@ State_t get_SM_state(void) { return current_state; }
  *
  * Implements the main state machine loop. Waits for initialization signal,
  * then continuously executes the run() callback of the current state.
- * A 1us sleep between iterations yields CPU time to other threads while
- * maintaining responsiveness.
+ *
+ * Between iterations, the behavior depends on CONFIG_STATE_MACHINE_USE_CPU_IDLE:
+ * - If enabled: Uses k_cpu_idle() for maximum responsiveness (higher power)
+ * - If disabled: Uses k_sleep(1us) for better power efficiency
  *
  * @param unused1 Unused parameter (required by thread signature)
  * @param unused2 Unused parameter (required by thread signature)
@@ -315,8 +325,14 @@ static void state_machine_thread(void *unused1, void *unused2, void *unused3) {
   /* Main state machine loop */
   while (1) {
     state_machine[current_state].run();
-    /* k_cpu_idle(); */ /* Alternative: Use idle instead of sleep to stay responsive */
-    k_sleep(K_USEC(1)); /* Sleep for 1us to yield CPU */
+
+#ifdef CONFIG_STATE_MACHINE_USE_CPU_IDLE
+    /* Use CPU idle - more responsive but higher power consumption */
+    k_cpu_idle();
+#else
+    /* Use sleep - better power efficiency, yields CPU to other threads */
+    k_sleep(K_USEC(1));
+#endif
   }
 }
 

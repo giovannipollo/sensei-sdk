@@ -45,3 +45,32 @@ config HAS_SEGGER_RTT
 	default y
 
 endmenu
+
+menu "State Machine Configuration"
+
+config STATE_MACHINE_USE_CPU_IDLE
+	bool "Use k_cpu_idle() instead of k_sleep() in state machine loop"
+	default n
+	help
+	  If enabled, the state machine thread will use k_cpu_idle() instead of
+	  k_sleep(K_USEC(1)) between state run() iterations. k_cpu_idle() keeps
+	  the CPU more responsive but may consume more power. k_sleep() yields
+	  CPU time to other threads more effectively and reduces power consumption.
+
+endmenu
+
+menu "ExG Streaming Configuration"
+
+config ADS_USE_BIPOLAR_MODE
+	bool "Use bipolar mode for ADS (ExG shield)"
+	default n
+	help
+	  If enabled, the ADS (Analog-to-Digital Sensor) will be powered on in
+	  bipolar mode when entering the S_NORDIC_STREAM state. If disabled,
+	  unipolar mode is used. The choice depends on the ExG shield hardware
+	  configuration and the type of biopotential signals being measured.
+	  
+	  - Bipolar mode (EMG): Differential measurement between two electrodes
+	  - Unipolar mode (EEG): Single-ended measurement referenced to ground
+
+endmenu
