@@ -47,7 +47,6 @@
 
 #include "board_streaming.h"
 #include "bsp/pwr_bsp.h"
-#include "pwr/pwr.h"
 #include "state_machine.h"
 
 /*===========================================================================*/

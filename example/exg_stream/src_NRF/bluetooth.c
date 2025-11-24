@@ -159,13 +159,13 @@ static void advertise(struct k_work *work) {
   err = bt_nus_init(&nus_cb);
   if (err) {
     LOG_ERR("Failed to initialize UART service (err: %d)", err);
-    return 0;
+    return;
   }
 
   err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
   if (err) {
     LOG_ERR("Advertising failed to start (err %d)", err);
-    return 0;
+    return;
   }
 
   LOG_INF("Bluetooth advertising started");
@@ -381,7 +381,7 @@ void print_ble_conn_info(void) {
   err = bt_conn_get_info(current_conn, &info);
   if (err) {
     LOG_ERR("Failed to get connection info %d\n", err);
-    return err;
+    return;
   }
 
   LOG_INF("TX max length: %u bytes", info.le.data_len->tx_max_len);

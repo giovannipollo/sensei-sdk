@@ -36,13 +36,6 @@
  */
 
 #include "ads_appl.h"
-#include "ads_spi.h"
-#include "ble_appl.h"
-#include "common.h"
-
-#include "bsp/pwr_bsp.h"
-#include "pwr/pwr.h"
-#include "pwr/pwr_common.h"
 
 #include <zephyr/logging/log.h>
 #include <zephyr/logging/log_ctrl.h>

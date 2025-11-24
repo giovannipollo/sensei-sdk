@@ -26,8 +26,6 @@
  * limitations under the License.
  */
 
-#include <stdio.h>
-#include <string.h>
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/gatt.h>
 #include <zephyr/bluetooth/hci.h>
@@ -47,15 +45,10 @@
 #include "bsp/pwr_bsp.h"
 #include "pwr/pwr.h"
 #include "pwr/pwr_common.h"
-#include "pwr/thread_pwr.h"
 
-#include "ads_appl.h"
 #include "ads_spi.h"
 #include "ble_appl.h"
-#include "board_streaming.h"
 #include "common.h"
-#include "lis2duxs12_sensor.h"
-#include "ppg_appl.h"
 #include "state_machine.h"
 
 static const struct device *const uart_dev = DEVICE_DT_GET_ONE(zephyr_cdc_acm_uart);

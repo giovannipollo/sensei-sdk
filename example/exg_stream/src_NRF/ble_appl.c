@@ -110,9 +110,6 @@ void ble_send_thread(void *arg1, void *arg2, void *arg3) {
  */
 
 void process_received_data_thread(void *arg1, void *arg2, void *arg3) {
-  uint8_t data;
-  int ret;
-
   LOG_INF("BLE receive thread started");
 
   while (1) {
@@ -137,7 +134,6 @@ void process_received_data_thread(void *arg1, void *arg2, void *arg3) {
     // Process received data here
     if (ble_data_available.available) {
       ble_data_available.available = false;
-      uint32_t err_code;
 
       LOG_DBG("Received data from BLE NUS. Writing data on UART.");
       // NRF_LOG_HEXDUMP_DEBUG(p_evt->params.rx_data.p_data, p_evt->params.rx_data.length);
