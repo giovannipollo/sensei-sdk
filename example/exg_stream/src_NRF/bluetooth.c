@@ -91,17 +91,11 @@ static volatile bool data_length_req;
 
 static K_SEM_DEFINE(ble_init_ok, 0, 1);
 
-/*
-static const struct device *const bme_dev = DEVICE_DT_GET_ONE(bosch_bme680);
-*/
 static void update_phy(struct bt_conn *conn);
 static void exchange_func(struct bt_conn *conn, uint8_t att_err, struct bt_gatt_exchange_params *params);
 static void update_data_length(struct bt_conn *conn);
 static void update_mtu(struct bt_conn *conn);
 static void le_data_length_updated(struct bt_conn *conn, struct bt_conn_le_data_len_info *info);
-// static int connection_configuration_set(const struct bt_le_conn_param *conn_param,
-//			const struct bt_conn_le_phy_param *phy,
-//			const struct bt_conn_le_data_len_param *data_len);
 void measure_throughput(void);
 void print_ble_conn_info(void);
 void init_test_data(void);
@@ -158,8 +152,6 @@ static void advertise(struct k_work *work) {
 
   LOG_INF("Bluetooth initialized");
 
-  // k_sem_give(&ble_init_ok);
-
   if (IS_ENABLED(CONFIG_SETTINGS)) {
     settings_load();
   }
@@ -207,7 +199,6 @@ static void connected(struct bt_conn *conn, uint8_t err) {
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason) {
-  // k_sem_take(&ble_init_ok, K_FOREVER);
 
   char addr[BT_ADDR_LE_STR_LEN];
 
@@ -360,37 +351,16 @@ void update_status(struct sensor_value *temp, struct sensor_value *press, struct
 }
 
 void ble_write_thread(void) {
-  // Don't go any further until BLE is initialized
+  LOG_INF("BLE write thread waiting for initialization");
   k_sem_take(&ble_init_ok, K_FOREVER);
-  // TODO, add semaphore again
-  LOG_INF("Hello from ble_write_thread \n");
+  LOG_INF("BLE write thread started after initialization. Wait 5s before sending data...");
   k_sleep(K_MSEC(5000));
 
-  // TODO: Remove again
   Set_ADS_Function(READ);
-
-  // LOG_INF("Initiating throughput optimization \n");
-  // int err;
-  // err = connection_configuration_set(conn_param, phy, data_len);
-  // if (err) {
-  //	return err;
-  // }
-  // LOG_INF("Done with throughput optimization \n");
-
-  // Make sure that all BLE procedures are finished.
-  // k_sleep(K_MSEC(500));
+  LOG_INF("ADS read function set. Now you can start sending data over BLE.");
 
   for (;;) {
-
-    // int err;
-    // err = bt_nus_send(NULL, test_data, sizeof(test_data));
-    // if (err) {
-    //     LOG_ERR("Failed to send data over BLE connection (err: %d)", err);
-    // }
-    // print_ble_conn_info();
     k_sleep(K_MSEC(100));
-    // k_yield();
-    // measure_throughput();
   }
 
   for (;;) {
@@ -400,125 +370,11 @@ void ble_write_thread(void) {
     if (bt_nus_send(NULL, buf->data, buf->len)) {
       LOG_WRN("Failed to send data over BLE connection");
     }
-
     k_free(buf);
   }
 }
 
-/*
-static int connection_configuration_set(const struct bt_le_conn_param *conn_param,
-                        const struct bt_conn_le_phy_param *phy,
-                        const struct bt_conn_le_data_len_param *data_len)
-{
-        LOG_INF("connection_configuration_set start\n");
-        int err;
-        struct bt_conn_info info = {0};
-
-        err = bt_conn_get_info(current_conn, &info);
-        if (err) {
-                LOG_ERR("Failed to get connection info %d\n", err);
-                return err;
-        }
-        LOG_INF("bt_conn_get_info returned\n");
-
-                // Connection role
-        LOG_INF("Connection role: %s", info.role == BT_CONN_ROLE_CENTRAL ? "central" : "peripheral");
-
-        // Connection interval
-        LOG_INF("Conn. interval is %u units\n", info.le.interval);
-
-        // Latency
-        LOG_INF("Conn. latency is %u", info.le.latency);
-
-        // Supervision timeout
-        LOG_INF("Supervision timeout is %u units", info.le.timeout);
-
-        // Address info
-        char addr[BT_ADDR_LE_STR_LEN];
-        bt_addr_le_to_str(info.le.src, addr, sizeof(addr));
-        LOG_INF("Source address: %s", addr);
-
-        bt_addr_le_to_str(info.le.dst, addr, sizeof(addr));
-        LOG_INF("Destination address: %s", addr);
-
-        // PHY info (if available)
-        #if defined(CONFIG_BT_CONN_INFO_EXT)
-        LOG_INF("TX PHY: %s", info.le.tx_phy == BT_GAP_LE_PHY_1M ? "LE 1M" :
-                               info.le.tx_phy == BT_GAP_LE_PHY_2M ? "LE 2M" :
-                               info.le.tx_phy == BT_GAP_LE_PHY_CODED ? "LE Coded" : "Unknown");
-
-        LOG_INF("RX PHY: %s", info.le.rx_phy == BT_GAP_LE_PHY_1M ? "LE 1M" :
-                               info.le.rx_phy == BT_GAP_LE_PHY_2M ? "LE 2M" :
-                               info.le.rx_phy == BT_GAP_LE_PHY_CODED ? "LE Coded" : "Unknown");
-        #endif
-
-        // Data length (if available)
-        #if defined(CONFIG_BT_DATA_LEN_UPDATE)
-        LOG_INF("TX max length: %u bytes", info.le.data_len->tx_max_len);
-    LOG_INF("TX max time: %u us", info.le.data_len->tx_max_time);
-    LOG_INF("RX max length: %u bytes", info.le.data_len->rx_max_len);
-    LOG_INF("RX max time: %u us", info.le.data_len->rx_max_time);
-        #endif
-
-
-
-
-        err = bt_conn_le_phy_update(current_conn, phy);
-        if (err) {
-                LOG_ERR("PHY update failed: %d\n", err);
-                return err;
-        }
-        LOG_INF("bt_conn_le_phy_update returned\n");
-
-        LOG_INF("PHY update pending\n");
-        err = k_sem_take(&throughput_sem, THROUGHPUT_CONFIG_TIMEOUT);
-        if (err) {
-                LOG_ERR("PHY update timeout\n");
-                return err;
-        }
-        LOG_INF("PHY update pending got the semaphore\n");
-
-
-        if (info.le.interval != conn_param->interval_max) {
-                err = bt_conn_le_param_update(current_conn, conn_param);
-                if (err) {
-                        LOG_ERR("Connection parameters update failed: %d\n",
-                                    err);
-                        return err;
-                }
-
-
-                LOG_INF("Connection parameters update pending\n");
-                err = k_sem_take(&throughput_sem, THROUGHPUT_CONFIG_TIMEOUT);
-                if (err) {
-                        LOG_ERR("Connection parameters update timeout\n");
-                        return err;
-                }
-        }
-
-        if (info.le.data_len->tx_max_len != data_len->tx_max_len) {
-                data_length_req = true;
-
-                err = bt_conn_le_data_len_update(current_conn, data_len);
-                if (err) {
-                        LOG_ERR("LE data length update failed: %d\n",
-                                    err);
-                        return err;
-                }
-                LOG_INF("LE Data length update pending\n");
-                err = k_sem_take(&throughput_sem, THROUGHPUT_CONFIG_TIMEOUT);
-                if (err) {
-                        LOG_ERR("LE Data Length update timeout\n");
-                        return err;
-                }
-        }
-
-        return 0;
-}
-*/
-
 void print_ble_conn_info(void) {
-  k_sleep(K_MSEC(2000));
   int err;
   struct bt_conn_info info = {0};
 
@@ -527,19 +383,14 @@ void print_ble_conn_info(void) {
     LOG_ERR("Failed to get connection info %d\n", err);
     return err;
   }
-  // #if defined(CONFIG_BT_DATA_LEN_UPDATE)
+
   LOG_INF("TX max length: %u bytes", info.le.data_len->tx_max_len);
   LOG_INF("TX max time: %u us", info.le.data_len->tx_max_time);
   LOG_INF("RX max length: %u bytes", info.le.data_len->rx_max_len);
   LOG_INF("RX max time: %u us", info.le.data_len->rx_max_time);
-  // Connection interval
   LOG_INF("Conn. interval is %u units\n", info.le.interval);
-  // Latency
   LOG_INF("Conn. latency is %u", info.le.latency);
-  // Supervision timeout
   LOG_INF("Supervision timeout is %u units", info.le.timeout);
-
-  // #endif
 }
 
 void measure_throughput(void) {

@@ -152,15 +152,15 @@ void process_received_data_thread(void *arg1, void *arg2, void *arg3) {
       } else {
         // Normal state
         uint8_t msg = ble_data_available.data[0];
-        LOG_DBG("\n -----------BLE COMMAND---------- %d\n", msg);
+        LOG_DBG("-----------BLE COMMAND---------- %d", msg);
         int k = 0;
         for (k = 0; k < ble_data_available.size; k++) {
-          LOG_DBG("\n %d \n", ble_data_available.data[k]);
+          LOG_DBG("Data[%d]: %d", k, ble_data_available.data[k]);
         }
-        LOG_DBG("\n -----------BLE COMMAND END------- \n");
+        LOG_DBG("-----------END COMMAND----------");
         switch (msg) {
         case REQUEST_BATTERY_STATE:
-          LOG_DBG("\nPing REQUEST_BATTERY_STATE\n");
+          LOG_DBG("Ping REQUEST_BATTERY_STATE");
           bat_data[0] = REQUEST_BATTERY_STATE;
           bat_data[1] = bsp_is_charging();
           bat_data[2] = 0;
@@ -173,36 +173,43 @@ void process_received_data_thread(void *arg1, void *arg2, void *arg3) {
           break;
 
         case GET_DEVICE_SETTINGS:
+          LOG_DBG("Ping GET_DEVICE_SETTINGS");
           SendDeviceSettings();
           break;
 
         case SET_DEVICE_SETTINGS:
+          LOG_DBG("Ping SET_DEVICE_SETTINGS");
           // set_device_througt_BLE_PCK(&ble_data_available.data[1], ble_data_available.size-1);
           break;
 
         case REQUEST_CONNECTING_STRING:
+          LOG_DBG("Ping REQUEST_CONNECTING_STRING");
           SendReady_BLE();
           break;
 
         case REQUEST_HARDWARE_VERSION:
+          LOG_DBG("Ping REQUEST_HARDWARE_VERSION");
           SendHardwareVersion();
           break;
 
         case REQUEST_FIRMWARE_VERSION:
+          LOG_DBG("Ping REQUEST_FIRMWARE_VERSION");
           SendFirmwareVersion();
           break;
 
         case REQUEST_AVAILABLE_SENSORS:
+          LOG_DBG("Ping REQUEST_AVAILABLE_SENSORS");
           SendAvailableSensors();
           break;
 
         case GET_BOARD_STATE:
+          LOG_DBG("Ping GET_BOARD_STATE");
+          LOG_DBG("Sending current state: %d", biowolf_current_state);
           send_data_ble(&biowolf_current_state, 1);
-          LOG_DBG("--> BOARD LOG --> Sent state: %d", biowolf_current_state);
           break;
 
         case SET_BOARD_STATE:
-          LOG_DBG("\nPing STATE_SWITCH\n");
+          LOG_DBG("Ping STATE_SWITCH");
           LOG_DBG(".data[1], %d", ble_data_available.data[1]);
           LOG_DBG(".data[2], %d", ble_data_available.data[2]);
 

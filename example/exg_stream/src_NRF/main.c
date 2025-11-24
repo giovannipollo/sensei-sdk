@@ -112,11 +112,11 @@ int main(void) {
   pwr_charge_enable();
   LOG_INF("Initializing ADS...");
   ret = ADS_dr_init();
-  #ifdef CONFIG_ADS_USE_BIPOLAR_MODE
+#ifdef CONFIG_ADS_USE_BIPOLAR_MODE
   LOG_INF("Powering ADS bipolar from main...");
   /* Bipolar mode - differential measurement */
   pwr_ads_on_bipolar();
-  #else
+#else
   LOG_INF("Powering ADS unipolar from main...");
   /* Unipolar mode - single-ended measurement (default) */
   pwr_ads_on_unipolar();

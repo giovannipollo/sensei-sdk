@@ -275,6 +275,7 @@ static const StateMachine_t state_machine[S_MAX_STATES] = {
  */
 void set_SM_state(State_t new_state) {
   if (new_state < S_MAX_STATES) {
+    LOG_INF("Transitioning from state %d to state %d", current_state, new_state);
     state_machine[current_state].exit();  /* Call exit function of current state */
     current_state = new_state;            /* Update current state */
     state_machine[current_state].entry(); /* Call entry function of new state */

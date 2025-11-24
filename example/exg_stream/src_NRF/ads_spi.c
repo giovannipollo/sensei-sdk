@@ -553,8 +553,6 @@ static int ads1298_read_spi(uint8_t *data, uint8_t size, enum ADS_id_t ads_id) {
  * @note empty_buffer contains zeros for dummy TX bytes
  */
 static int ads1298_read_samples(uint8_t *data, uint8_t size, enum ADS_id_t ads_id) {
-  int err;
-
   unsigned int key = irq_lock(); // Disable all interrupts
   k_mutex_lock(&spi_mutex, K_FOREVER);
 

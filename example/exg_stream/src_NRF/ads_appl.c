@@ -96,7 +96,10 @@ enum ADS_function_t Get_ADS_Function() { return (ADS_function); }
  *       it only updates the state variable. The actual transition is
  *       handled by the main loop or interrupt handlers.
  */
-void Set_ADS_Function(enum ADS_function_t f) { ADS_function = f; }
+void Set_ADS_Function(enum ADS_function_t f) { 
+    LOG_DBG("Setting ADS function to %d", f);
+    ADS_function = f; 
+}
 
 /**
  * @brief Set the trigger value for sample synchronization
@@ -112,7 +115,10 @@ void Set_ADS_Function(enum ADS_function_t f) { ADS_function = f; }
  * @note The trigger value is automatically embedded in each BLE packet
  *       and reset after transmission (if needed by application logic).
  */
-void set_trigger(uint8_t value) { trigger_value = value; }
+void set_trigger(uint8_t value) { 
+    LOG_DBG("Setting trigger value to %d", value);
+    trigger_value = value; 
+}
 
 /**
  * @brief Get the current trigger value
