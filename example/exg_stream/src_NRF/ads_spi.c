@@ -310,11 +310,11 @@ static void spim_handler(nrfx_spim_evt_t const *p_event, void *p_context) {
   if (p_event->type == NRFX_SPIM_EVENT_DONE) {
     if (gpio_pin_set_dt(&gpio_dt_ads1298_a_cs, 0) < 0) { // Set CS pin to disable
       LOG_ERR("ADS1298 power GPIO set error");
-      return -1;
+      return;
     }
     if (gpio_pin_set_dt(&gpio_dt_ads1298_b_cs, 0) < 0) { // Set CS pin to disable
       LOG_ERR("ADS1298 power GPIO set error");
-      return -1;
+      return;
     }
 
     if (Get_ADS_Function() == READ) {
@@ -457,31 +457,31 @@ void init_SPI() {
   // Initialize SPI CS pin for ADS A
   if (!device_is_ready(gpio_dt_ads1298_a_cs.port)) {
     LOG_ERR("ADS1298 power GPIO port not ready");
-    return -1;
+    return;
   }
   if (gpio_pin_configure_dt(&gpio_dt_ads1298_a_cs, GPIO_OUTPUT_INACTIVE) < 0) {
     LOG_ERR("ADS pwr GPIO init error");
-    return 0;
+    return;
   }
 
   // Initialize SPI CS pin for ADS B
   if (!device_is_ready(gpio_dt_ads1298_b_cs.port)) {
     LOG_ERR("ADS1298 power GPIO port not ready");
-    return -1;
+    return;
   }
   if (gpio_pin_configure_dt(&gpio_dt_ads1298_b_cs, GPIO_OUTPUT_INACTIVE) < 0) {
     LOG_ERR("ADS pwr GPIO init error");
-    return 0;
+    return;
   }
 
   // Initialize SPI START pin for synchronized start of ADS A and B
   if (!device_is_ready(gpio_dt_ads1298_start_pin.port)) {
     LOG_ERR("ADS1298 power GPIO port not ready");
-    return -1;
+    return;
   }
   if (gpio_pin_configure_dt(&gpio_dt_ads1298_start_pin, GPIO_OUTPUT_INACTIVE) < 0) {
     LOG_ERR("ADS pwr GPIO init error");
-    return 0;
+    return;
   }
 
   k_mutex_init(&spi_mutex);
@@ -508,7 +508,6 @@ void init_SPI() {
  * @note CS is asserted by this function and deasserted by interrupt handler
  */
 static int ads1298_read_spi(uint8_t *data, uint8_t size, enum ADS_id_t ads_id) {
-  int err;
 
   unsigned int key = irq_lock(); // Disable all interrupts
   k_mutex_lock(&spi_mutex, K_FOREVER);
@@ -635,7 +634,6 @@ static int ads1298_write_spi(uint8_t size, enum ADS_id_t ads_id) {
  * @note 30ms delays allow device to complete operations per datasheet timing
  */
 void ADS_check_ID(enum ADS_id_t ads_id) {
-  int err;
 
   /*ADS INIZIALIZATION*/
   // RESET DEVICE

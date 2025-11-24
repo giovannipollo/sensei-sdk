@@ -182,7 +182,6 @@ static void connected(struct bt_conn *conn, uint8_t err) {
   bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
   LOG_INF("Connected %s", addr);
 
-  struct bt_conn_info info = {0};
   current_conn = bt_conn_ref(conn);
 
   /* *** Request new connection parameters right away *** */

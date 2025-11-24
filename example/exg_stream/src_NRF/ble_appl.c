@@ -91,7 +91,7 @@ void ble_send_thread(void *arg1, void *arg2, void *arg3) {
     ret = k_msgq_get(&send_msgq, &send_data, K_FOREVER);
     if (ret == 0) {
       // Implement actual BLE send logic here
-      LOG_INF("Sending BLE data: %d", send_data);
+      LOG_INF("Sending data over BLE");
       send_data_ble(&send_data, BLE_PCKT_SEND_SIZE);
     } else {
       LOG_ERR("Failed to get data from send_msgq (err %d)", ret);
@@ -148,7 +148,7 @@ void process_received_data_thread(void *arg1, void *arg2, void *arg3) {
       } else {
         // Normal state
         uint8_t msg = ble_data_available.data[0];
-        LOG_DBG("-----------BLE COMMAND---------- %d", msg);
+        LOG_DBG("-----------BLE COMMAND----------");
         int k = 0;
         for (k = 0; k < ble_data_available.size; k++) {
           LOG_DBG("Data[%d]: %d", k, ble_data_available.data[k]);
@@ -252,10 +252,10 @@ void process_received_data_thread(void *arg1, void *arg2, void *arg3) {
           break;
 
         default:
-          LOG_DBG("\nPing default\n");
+          LOG_DBG("Ping default");
 
           if (get_state_biogap() == STATE_GAP9_MASTER) {
-            LOG_DBG("\nPing STATE_GAP9_MASTER\n");
+            LOG_DBG("Ping STATE_GAP9_MASTER");
             pck_uart_wolf.data_len = ble_data_available.size;
             // pck_uart_wolf.p_data = &p_evt->params.rx_data.p_data[0];
             memcpy(pck_uart_wolf.p_data, ble_data_available.data, pck_uart_wolf.data_len);
@@ -263,30 +263,30 @@ void process_received_data_thread(void *arg1, void *arg2, void *arg3) {
             // flag_notify_wolf_uart = true;
 
           } else {
-            LOG_DBG("\nelse\n");
+            LOG_DBG("else");
             if (WaitingForConfig == 0) {
-              LOG_DBG("\nWaitingForConfig==0\n");
+              LOG_DBG("WaitingForConfig==0");
               switch (ble_data_available.data[0]) {
               case START_STREAMING_NORDIC:
                 // nrf_gpio_pin_toggle(LED1);
                 set_SM_state(S_NORDIC_STREAM);
-                LOG_DBG("\nPing START_STREAMING_NORDIC\n");
+                LOG_DBG("Ping START_STREAMING_NORDIC");
                 WaitingForConfig = 1;
                 Set_ADS_Function(START);
                 break;
               case STOP_STREAMING_NORDIC:
                 set_SM_state(S_LOW_POWER_CONNECTED);
-                LOG_DBG("\nPing STOP_STREAMING_NORDIC\n");
+                LOG_DBG("Ping STOP_STREAMING_NORDIC");
                 // nrf_gpio_pin_toggle(LED1);
                 Set_ADS_Function(STOP);
                 break;
 
               default:
-                LOG_DBG("\ndefault\n");
+                LOG_DBG("default");
                 break;
               }
             } else {
-              LOG_DBG("\nConfig received\n");
+              LOG_DBG("Config received");
               WaitingForConfig = 0;
               ConfigParams[0] = ble_data_available.data[0];
               ConfigParams[1] = ble_data_available.data[1];
@@ -303,18 +303,18 @@ void process_received_data_thread(void *arg1, void *arg2, void *arg3) {
 }
 
 uint32_t GetConfigParam(uint8_t *InitParams) {
-  // WaitingForConfig=1;
-  printf("\n set wait config to 1 \n");
-  // SendReady_BLE();
-
+  LOG_INF("Waiting for configuration parameters from BLE...");
+  
+  /* Wait until configuration parameters are received */
   while (WaitingForConfig == 1) {
-    // check_post_event_flags();
-    // do nothing
-  }; // WAIT FOR CONFIG PARAMETERS
+  }; 
 
+  LOG_INF("Configuration parameters received from BLE.");
   for (int i = 0; i < 5; i++) {
+    LOG_INF("ConfigParams[%d]: %d", i, ConfigParams[i]);
     InitParams[i] = ConfigParams[i];
   }
+  return 0;
 }
 
 // Funtion to put data into receive buffer
@@ -355,10 +355,7 @@ void add_data_to_send_buffer(uint8_t *data) {
  *
  * Creates the BLE send and receive threads.
  */
-void init_ble_comm() {
-  k_tid_t err;
-  LOG_INF("Initializing BLE communication");
-}
+void init_ble_comm() { LOG_INF("Initializing BLE communication"); }
 
 void set_state_biogap(int8_t state) { biowolf_current_state = state; }
 
@@ -398,9 +395,7 @@ void SendAvailableSensors() {
 void SendDeviceSettings() {}
 
 void SendReady_BLE() {
-  uint32_t ret_val;
   uint8_t ready[5] = {'B', 'W', 'F', '1', '6'};
-
   return (send_data_ble(&ready[0], 5));
 }
 

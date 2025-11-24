@@ -194,8 +194,6 @@ uint32_t MAX86150_IR_get(void) { return ir; }
  */
 void ppg_receive_thread(void *arg1, void *arg2, void *arg3) {
 
-  int ret;
-
   LOG_INF("PPG thread started");
   // sleep for 3 seconds
   k_msleep(3000);
