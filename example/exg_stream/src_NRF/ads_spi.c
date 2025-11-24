@@ -25,84 +25,285 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "ads_spi.h"
 
+/**
+ * @file ads_spi.c
+ * @brief ADS1298 SPI Driver Implementation
+ *
+ * This module implements low-level SPI communication with dual ADS1298 devices
+ * and constructs BLE data packets for streaming bio-potential signals.
+ *
+ * @section data_flow Data Flow
+ * 1. DRDY interrupt triggers when ADS1298 has new data
+ * 2. process_ads_data() reads from both ADS1298 devices
+ * 3. Data is combined with PPG (if active) and IMU readings
+ * 4. Seven samples are accumulated into a 234-byte BLE packet
+ * 5. Packet is sent via BLE to connected device
+ *
+ * @section timing Timing Considerations
+ * - At 1 kSPS sampling rate, DRDY occurs every 1 ms
+ * - BLE packet is sent every 7 ms (7 samples)
+ * - SPI transfers must complete within 1 ms to avoid data loss
+ */
+
+/* Zephyr RTOS headers */
+#include <nrfx_spim.h>
+#include <zephyr/device.h>
+#include <zephyr/devicetree.h>
+#include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/spi.h>
-
+#include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/logging/log_ctrl.h>
 
-#include <nrfx_spim.h>
-
-#include <zephyr/device.h>
-#include <zephyr/devicetree.h>
-#include <zephyr/kernel.h>
-
-#include <zephyr/drivers/gpio.h>
-
+/* Application headers */
 #include "ads_appl.h"
+#include "ads_spi.h"
 #include "ble_appl.h"
 #include "lis2duxs12_sensor.h"
 #include "ppg_appl.h"
 
+/* BSP headers */
 #include "bsp/pwr_bsp.h"
 #include "pwr/pwr.h"
 #include "pwr/pwr_common.h"
 
 LOG_MODULE_REGISTER(ads_spi, LOG_LEVEL_DBG);
 
+/*==============================================================================
+ * Device Tree Node References
+ *============================================================================*/
+
+/** @brief Data Ready pin for ADS1298_A */
 #define ADS_A_DR_NODE DT_NODELABEL(gpio_ads1298_a_dr)
 
+/** @brief Chip Select pin for ADS1298_A */
 #define CS_A_NODE DT_NODELABEL(gpio_ads1298_a_spi_cs)
+
+/** @brief Chip Select pin for ADS1298_B */
 #define CS_B_NODE DT_NODELABEL(gpio_ads1298_b_spi_cs)
+
+/** @brief Shared START pin for synchronized acquisition */
 #define ADS_START_NODE DT_NODELABEL(gpio_ads1298_start_pin)
 
+/*==============================================================================
+ * GPIO Device Specifications
+ *============================================================================*/
+
+/** @brief ADS1298_A chip select GPIO spec */
 static const struct gpio_dt_spec gpio_dt_ads1298_a_cs = GPIO_DT_SPEC_GET(CS_A_NODE, gpios);
+
+/** @brief ADS1298_B chip select GPIO spec */
 static const struct gpio_dt_spec gpio_dt_ads1298_b_cs = GPIO_DT_SPEC_GET(CS_B_NODE, gpios);
+
+/** @brief ADS1298 START pin GPIO spec (shared by both devices) */
 static const struct gpio_dt_spec gpio_dt_ads1298_start_pin = GPIO_DT_SPEC_GET(ADS_START_NODE, gpios);
 
+/** @brief ADS1298_A data ready pin GPIO spec */
 static const struct gpio_dt_spec gpio_dt_ads1298_a_dr = GPIO_DT_SPEC_GET(ADS_A_DR_NODE, gpios);
 
+/*==============================================================================
+ * SPI Configuration
+ *============================================================================*/
+
+/** @brief SPI interrupt priority level */
 #define SPI_INT_PRIO 1
 
+/** @brief SPI operation flags: 8-bit words, MSB first */
 #define SPIOP SPI_WORD_SET(8) | SPI_TRANSFER_MSB
+
+/** @brief SPI device tree spec for ADS1298_A */
 struct spi_dt_spec spispec = SPI_DT_SPEC_GET(DT_NODELABEL(ads1298_a), SPIOP, 0);
 
-uint8_t counter_extra = 0; // An extra counter that is read out in the Matlab conversion script
-
-uint8_t pr_word[10] = {_RESET, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-static uint32_t tx_buf_inx = 0;
-
-uint8_t ble_tx_buf[PCK_LNGTH] = {0}; // To build the BLE packet
-uint8_t counter = 0;
-static uint8_t empty_buffer[27] = {0}; /**< TX buffer. */
-static uint8_t ads_rx_buf[40];         /**< ADS RX SPI buffer. */
-
-bool skip_reads = true;
-int skiped_samples = 0;
-bool ads_initialized = false;
-static volatile bool ads_to_read = ADS1298_A;
-
-static struct k_mutex spi_mutex;
-
-// PPG sensor variables
-extern sense_struct sense;
-
-static volatile bool spi_xfer_done = true; /**< Flag used to indicate that SPI instance completed the transfer. */
-static volatile bool ads_data_ready = false;
-
-bool drdy_served = true;
-static bool pck_ble_ready = false;
-
-nrfx_spim_t spim_inst = NRFX_SPIM_INSTANCE(SPIM_INST_IDX);
-
-// struct spi_dt_spec spispec = SPI_DT_SPEC_GET(DT_NODELABEL(ads1298_a), SPI_WORD_SET(8), 0);
+/*==============================================================================
+ * Module Variables - SPI Buffers
+ *============================================================================*/
 
 /**
- * @brief Function for handling SPIM driver events.
+ * @brief SPI command/data word buffer
  *
- * @param[in] p_event   Pointer to the SPIM driver event.
- * @param[in] p_context Pointer to the context passed from the driver.
+ * Used to construct SPI commands and register writes. Initialized with
+ * RESET command. Maximum size is 10 bytes to accommodate register writes.
+ */
+uint8_t pr_word[10] = {_RESET, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+/**
+ * @brief Empty buffer for SPI reads
+ *
+ * Transmitted during data read operations. Size is 27 bytes:
+ * - 3 status bytes
+ * - 24 data bytes (8 channels × 3 bytes each)
+ */
+static uint8_t empty_buffer[27] = {0};
+
+/**
+ * @brief SPI receive buffer for ADS1298 data
+ *
+ * Receives data from ADS1298 during SPI transfers. Oversized to 40 bytes
+ * to accommodate potential extended transfers.
+ */
+static uint8_t ads_rx_buf[40];
+
+/*==============================================================================
+ * Module Variables - BLE Packet Construction
+ *============================================================================*/
+
+/**
+ * @brief BLE transmission packet buffer
+ *
+ * Accumulates 7 samples into a complete 234-byte packet before transmission.
+ * Format documented in ads_spi.h header.
+ */
+uint8_t ble_tx_buf[PCK_LNGTH] = {0};
+
+/**
+ * @brief Current write index in BLE packet buffer
+ *
+ * Tracks the next position to write sample data. Reset to 0 when packet
+ * is complete and ready for transmission.
+ */
+static uint32_t tx_buf_inx = 0;
+
+/**
+ * @brief BLE packet counter
+ *
+ * Increments with each transmitted packet. Wraps around at 255. Used by
+ * receiver to detect packet loss.
+ */
+uint8_t counter = 0;
+
+/**
+ * @brief Extra counter for debugging/custom data
+ *
+ * Increments on each DRDY interrupt. Can be read out by MATLAB conversion
+ * scripts for timing analysis.
+ */
+uint8_t counter_extra = 0;
+
+/*==============================================================================
+ * Module Variables - State Flags
+ *============================================================================*/
+
+/**
+ * @brief ADS1298 initialization status
+ *
+ * Set to true after both devices pass ID check and register configuration.
+ * Prevents data acquisition attempts before proper initialization.
+ */
+bool ads_initialized = false;
+
+/**
+ * @brief Skip initial samples flag
+ *
+ * Set to true when starting acquisition. First 500 samples are discarded
+ * to allow the ADC and analog front-end to settle.
+ */
+bool skip_reads = true;
+
+/**
+ * @brief Count of skipped samples during startup
+ *
+ * Incremented until reaching 500, at which point skip_reads is cleared
+ * and normal data acquisition begins.
+ */
+int skiped_samples = 0;
+
+/**
+ * @brief SPI transfer complete flag
+ *
+ * Set by SPI interrupt handler when transfer completes. Polled by
+ * blocking code to wait for completion.
+ */
+static volatile bool spi_xfer_done = true;
+
+/**
+ * @brief Data ready interrupt flag
+ *
+ * Set by DRDY GPIO interrupt when new ADC data is available. Cleared
+ * by process_ads_data() after reading.
+ */
+static volatile bool ads_data_ready = false;
+
+/**
+ * @brief DRDY serviced flag
+ *
+ * Tracks whether the previous DRDY interrupt was serviced. If false when
+ * new DRDY arrives, indicates data overrun and acquisition is stopped.
+ */
+bool drdy_served = true;
+
+/**
+ * @brief BLE packet ready flag
+ *
+ * Indicates previous packet has not been transmitted yet. If true when
+ * completing a new packet, acquisition is stopped to prevent buffer overflow.
+ */
+static bool pck_ble_ready = false;
+
+/**
+ * @brief Current ADS device being read
+ *
+ * Tracks which device (A or B) is currently being read in the SPI handler.
+ * Used to properly route data in the interrupt callback.
+ */
+static volatile bool ads_to_read = ADS1298_A;
+
+/*==============================================================================
+ * Module Variables - Synchronization
+ *============================================================================*/
+
+/**
+ * @brief SPI bus mutex
+ *
+ * Protects SPI bus access from concurrent threads. Locked during SPI
+ * transfers, unlocked when complete.
+ */
+static struct k_mutex spi_mutex;
+
+/**
+ * @brief SPIM driver instance
+ *
+ * nrfx SPIM peripheral instance for ADS1298 communication.
+ */
+nrfx_spim_t spim_inst = NRFX_SPIM_INSTANCE(SPIM_INST_IDX);
+
+/*==============================================================================
+ * External Variables
+ *============================================================================*/
+
+/**
+ * @brief PPG sensor data structure
+ *
+ * Defined in ppg_appl.c. Contains circular buffer of red and IR LED readings.
+ */
+extern sense_struct sense;
+
+/*==============================================================================
+ * Private Function Declarations
+ *============================================================================*/
+
+static int ads1298_read_spi(uint8_t *data, uint8_t size, enum ADS_id_t ads_id);
+static int ads1298_read_samples(uint8_t *data, uint8_t size, enum ADS_id_t ads_id);
+static int ads1298_write_spi(uint8_t size, enum ADS_id_t ads_id);
+static void cb_ads_a_dr(const struct device *dev, struct gpio_callback *cb, uint32_t pins);
+
+/*==============================================================================
+ * SPI Interrupt Handler
+ *============================================================================*/
+
+/**
+ * @brief SPIM driver interrupt handler
+ *
+ * Called by nrfx SPIM driver when SPI transfer completes. This handler:
+ * 1. Deasserts chip select for both ADS devices
+ * 2. Processes received data if in READ mode
+ * 3. Constructs BLE packets from ADS/PPG/IMU data
+ * 4. Sets flags to indicate transfer completion
+ *
+ * @param[in] p_event   Pointer to SPIM event structure
+ * @param[in] p_context User context (unused)
+ *
+ * @note This function runs in interrupt context. Keep processing minimal.
  */
 static void spim_handler(nrfx_spim_evt_t const *p_event, void *p_context) {
 
@@ -205,23 +406,33 @@ static void spim_handler(nrfx_spim_evt_t const *p_event, void *p_context) {
       }
 
       drdy_served = true;
-      // k_sem_give(&sem_drdy_served);
     }
 
     spi_xfer_done = true;
   }
 }
 
-// Callback function for the ADS1298 A data ready pin
-void cb_ads_a_dr(const struct device *dev, struct gpio_callback *cb, uint32_t pins) {
-  // Set flag indicating new data is ready
-  // LOG_INF("DRDY interrupt received");
-  ads_data_ready = true;
-  counter_extra = counter_extra + 1;
-}
-// Define a variable of type static struct gpio_callback
-static struct gpio_callback ads1298_a_dr_cb_data;
+/*==============================================================================
+ * Public Functions - Initialization
+ *============================================================================*/
 
+/**
+ * @brief Initialize SPI peripheral and GPIO pins for ADS1298 communication
+ *
+ * Performs complete hardware initialization:
+ * 1. Connects SPI interrupt handler
+ * 2. Configures SPIM peripheral (4 MHz, Mode 1, MSB first)
+ * 3. Initializes chip select pins for both ADS devices
+ * 4. Initializes START pin for synchronized acquisition
+ * 5. Creates SPI mutex for thread-safe access
+ *
+ * SPI Mode 1 timing:
+ * - CPOL = 0 (clock idle low)
+ * - CPHA = 1 (data sampled on rising edge, shifted on falling edge)
+ *
+ * @note This function must be called before any other ADS functions.
+ *       Errors are logged but not returned to allow graceful degradation.
+ */
 void init_SPI() {
   nrfx_err_t status;
   (void)status;
@@ -276,6 +487,26 @@ void init_SPI() {
   k_mutex_init(&spi_mutex);
 }
 
+/*==============================================================================
+ * Private Functions - Low-Level SPI Transfers
+ *============================================================================*/
+
+/**
+ * @brief Perform SPI read transaction with command
+ *
+ * Executes a full-duplex SPI transfer, transmitting command bytes from pr_word
+ * and receiving response into ads_rx_buf. Used for register reads and device
+ * identification.
+ *
+ * @param[in] data    Unused parameter (data comes from pr_word buffer)
+ * @param[in] size    Number of bytes to transfer
+ * @param[in] ads_id  Target device (ADS1298_A or ADS1298_B)
+ *
+ * @return 0 on success, -1 on GPIO error
+ *
+ * @note This function disables interrupts during transfer for timing accuracy
+ * @note CS is asserted by this function and deasserted by interrupt handler
+ */
 static int ads1298_read_spi(uint8_t *data, uint8_t size, enum ADS_id_t ads_id) {
   int err;
 
@@ -304,6 +535,23 @@ static int ads1298_read_spi(uint8_t *data, uint8_t size, enum ADS_id_t ads_id) {
   return 0;
 }
 
+/**
+ * @brief Read ADC sample data in continuous mode
+ *
+ * Reads conversion data when in RDATAC (Read Data Continuous) mode.
+ * Transmits dummy bytes (zeros) and receives 27 bytes of data:
+ * - 3 status bytes (24-bit status word)
+ * - 24 data bytes (8 channels × 3 bytes per channel)
+ *
+ * @param[in] data    Unused parameter (data received into ads_rx_buf)
+ * @param[in] size    Number of bytes to transfer (typically 27)
+ * @param[in] ads_id  Target device (ADS1298_A or ADS1298_B)
+ *
+ * @return 0 on success, -1 on GPIO error
+ *
+ * @note Called from DRDY interrupt context via process_ads_data()
+ * @note empty_buffer contains zeros for dummy TX bytes
+ */
 static int ads1298_read_samples(uint8_t *data, uint8_t size, enum ADS_id_t ads_id) {
   int err;
 
@@ -331,8 +579,23 @@ static int ads1298_read_samples(uint8_t *data, uint8_t size, enum ADS_id_t ads_i
   return 0;
 }
 
+/**
+ * @brief Write command or register data to ADS1298
+ *
+ * Transmits command bytes from pr_word buffer to configure the device.
+ * Used for:
+ * - Single-byte commands (RESET, START, STOP, etc.)
+ * - Register writes (WREG followed by address and data)
+ *
+ * @param[in] size    Number of bytes to write from pr_word
+ * @param[in] ads_id  Target device (ADS1298_A or ADS1298_B)
+ *
+ * @return 0 on success, -1 on GPIO error
+ *
+ * @note pr_word buffer must be populated before calling this function
+ * @note Transfer is non-blocking; poll spi_xfer_done for completion
+ */
 static int ads1298_write_spi(uint8_t size, enum ADS_id_t ads_id) {
-
   nrfx_spim_xfer_desc_t spim_xfer_desc = NRFX_SPIM_XFER_TRX(pr_word, sizeof(pr_word), ads_rx_buf, sizeof(pr_word));
   nrfx_err_t status;
   if (ads_id == ADS1298_A) {
@@ -352,6 +615,27 @@ static int ads1298_write_spi(uint8_t size, enum ADS_id_t ads_id) {
   return 0;
 }
 
+/*==============================================================================
+ * Public Functions - Device Verification
+ *============================================================================*/
+
+/**
+ * @brief Verify ADS1298 device ID
+ *
+ * Performs device identification to ensure proper SPI communication and
+ * correct device population. The ADS1298 ID register should read 0xD2.
+ *
+ * Sequence:
+ * 1. Send RESET command to restore default registers
+ * 2. Send SDATAC to stop continuous data mode
+ * 3. Read ID register (address 0x00)
+ * 4. Verify ID value is 0xD2
+ *
+ * @param[in] ads_id Device to verify (ADS1298_A or ADS1298_B)
+ *
+ * @note If ID check fails, function enters infinite loop with error logging
+ * @note 30ms delays allow device to complete operations per datasheet timing
+ */
 void ADS_check_ID(enum ADS_id_t ads_id) {
   int err;
 
@@ -380,8 +664,60 @@ void ADS_check_ID(enum ADS_id_t ads_id) {
   }
 }
 
+/*==============================================================================
+ * Interrupt Callbacks
+ *============================================================================*/
+
+/** @brief GPIO callback data structure for DRDY interrupt */
+static struct gpio_callback ads1298_a_dr_cb_data;
+
+/**
+ * @brief GPIO callback for ADS1298 data ready interrupt
+ *
+ * Invoked by GPIO subsystem when DRDY pin goes active. Sets flag for
+ * main loop processing and increments debug counter.
+ *
+ * @param[in] dev   GPIO device (unused)
+ * @param[in] cb    Callback structure (unused)
+ * @param[in] pins  Pin mask that triggered interrupt (unused)
+ *
+ * @note Runs in interrupt context - keep processing minimal
+ * @note Both ADS devices share this DRDY signal (synchronized)
+ */
+static void cb_ads_a_dr(const struct device *dev, struct gpio_callback *cb, uint32_t pins) {
+  /* Signal that new data is available */
+  ads_data_ready = true;
+
+  /* Increment debug counter for timing analysis */
+  counter_extra = counter_extra + 1;
+}
+
+/*==============================================================================
+ * Public Functions - Data Ready Signal
+ *============================================================================*/
+
+/**
+ * @brief Read current state of DRDY pin
+ *
+ * @return 1 if data ready (pin active low on ADS1298), 0 if not ready
+ */
 int ADS_dr_read() { return gpio_pin_get_dt(&gpio_dt_ads1298_a_dr); }
 
+/**
+ * @brief Initialize data ready (DRDY) GPIO interrupt
+ *
+ * Configures the DRDY pin for interrupt-driven data acquisition.
+ * The DRDY pin is shared between both ADS1298 devices since they
+ * are synchronized via the START pin.
+ *
+ * DRDY characteristics:
+ * - Active low signal
+ * - Pulses high when new data is ready
+ * - Interrupt on low-to-high edge (EDGE_TO_ACTIVE)
+ * - At 1 kSPS, occurs every 1 ms
+ *
+ * @return 0 on success, -1 on error
+ */
 int ADS_dr_init() {
   // Initialize the data ready pin
   if (!device_is_ready(gpio_dt_ads1298_a_dr.port)) {
@@ -412,6 +748,44 @@ int ADS_dr_init() {
   return 0;
 }
 
+/*==============================================================================
+ * Public Functions - Device Configuration
+ *============================================================================*/
+
+/**
+ * @brief Initialize ADS1298 device with specified parameters
+ *
+ * Performs complete device initialization sequence:
+ * 1. Reset device to default state
+ * 2. Stop continuous data mode
+ * 3. Configure data rate and reference settings (CONFIG1-CONFIG3)
+ * 4. Configure all 8 channel settings (gain, input type)
+ * 5. Initialize BLE packet buffer
+ *
+ * @param[in] InitParams Configuration parameter array:
+ *   - [0]: Data rate code (0=16kSPS to 6=250SPS)
+ *        Common values: 2=1kSPS, 3=500SPS
+ *   - [1]: Channel input configuration
+ *        0x00=Normal electrode input
+ *        0x01=Shorted input (offset calibration)
+ *        0x05=Test signal
+ *   - [2]: Reserved (not used)
+ *   - [3]: Reserved (not used)
+ *   - [4]: Channel gain code
+ *        0x00=Gain 6, 0x10=Gain 1, 0x20=Gain 2, etc.
+ *
+ * @param[in] ads_id Device to initialize (ADS1298_A or ADS1298_B)
+ *
+ * Register Configuration Details:
+ * - CONFIG1: Data rate, CLK connection, daisy-chain disable
+ * - CONFIG2: Test signal configuration, reference buffer
+ * - CONFIG3: Internal reference, RLD buffer, bias settings
+ * - CH1SET-CH8SET: Per-channel power-down, gain, and input MUX
+ *
+ * @note Function blocks waiting for SPI transfers to complete
+ * @note 30ms delays allow device to complete configuration per datasheet
+ * @note Sets ads_initialized flag when complete
+ */
 void ADS_Init(uint8_t *InitParams, enum ADS_id_t ads_id) {
 
   // buffer_counter = 0;
@@ -484,6 +858,23 @@ void ADS_Init(uint8_t *InitParams, enum ADS_id_t ads_id) {
   ads_initialized = true;
 }
 
+/*==============================================================================
+ * Public Functions - Acquisition Control
+ *============================================================================*/
+
+/**
+ * @brief Stop data acquisition on both ADS1298 devices
+ *
+ * Sends SDATAC (Stop Data Continuous) command to both devices.
+ * This halts conversion and allows register access.
+ *
+ * Side effects:
+ * - Sets skip_reads flag to discard first 500 samples on restart
+ * - Required to ensure ADC has settled before streaming valid data
+ *
+ * @note Does not power down the device, just stops conversions
+ * @note Both devices must be stopped for synchronized operation
+ */
 void ADS_Stop() {
   // STOP DEVICE
 
@@ -509,6 +900,23 @@ void ADS_Stop() {
     ;
 }
 
+/**
+ * @brief Start synchronized data acquisition on both ADS1298 devices
+ *
+ * Sends START and RDATAC commands to both devices in sequence.
+ * The devices begin converting and streaming data immediately.
+ *
+ * Command sequence per device:
+ * 1. START (0x08): Begin conversions
+ * 2. RDATAC (0x10): Enable continuous data read mode
+ *
+ * In RDATAC mode, data is automatically clocked out on each DRDY pulse
+ * without needing to send read commands.
+ *
+ * @note Devices are synchronized via shared START pin (if used)
+ * @note DRDY interrupts will begin firing once conversion starts
+ * @note First 500 samples are skipped if skip_reads flag is set
+ */
 void ADS_Start() {
   // printf("...Starting ADS...\n");
 
@@ -527,6 +935,41 @@ void ADS_Start() {
     ;
 }
 
+/*==============================================================================
+ * Public Functions - Data Processing
+ *============================================================================*/
+
+/**
+ * @brief Process ADS1298 data when DRDY interrupt occurs
+ *
+ * Main data acquisition handler called from application main loop.
+ * Manages the complete data flow from ADS devices to BLE transmission:
+ *
+ * Data Flow:
+ * 1. Check if DRDY interrupt occurred (ads_data_ready flag)
+ * 2. Skip first 500 samples for ADC settling (if skip_reads is set)
+ * 3. Read 27 bytes from ADS1298_A (3 status + 24 data bytes)
+ * 4. Read 27 bytes from ADS1298_B
+ * 5. Data is processed in SPI interrupt handler (spim_handler):
+ *    - Extract 24 data bytes (8 channels × 3 bytes)
+ *    - Combine with PPG data (if active)
+ *    - Append IMU accelerometer data
+ *    - Build 234-byte BLE packet (7 samples)
+ *    - Queue for BLE transmission
+ *
+ * Error Handling:
+ * - If previous DRDY not serviced: Stop acquisition (data overrun)
+ * - Prevents data corruption and buffer overflow
+ *
+ * Timing Requirements:
+ * - At 1 kSPS, this function must complete in <1ms
+ * - SPI transfers take ~200μs each
+ * - Total processing: ~500μs leaves margin for other tasks
+ *
+ * @note Must be called frequently from main loop (polled architecture)
+ * @note Actual data packaging happens in spim_handler interrupt
+ * @note Sets drdy_served=false to detect missed samples
+ */
 void process_ads_data(void) {
   if (ads_data_ready) {
     // Clear flag first to avoid missing next interrupt
