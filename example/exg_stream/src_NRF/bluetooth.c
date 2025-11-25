@@ -438,8 +438,7 @@ void init_test_data(void) {
 }
 
 void send_data_ble(char *data_array, int16_t length) {
-  // print the data to be sent
-  LOG_INF("Sending data over BLE: %s", data_array);
+  LOG_INF("Sending %d bytes over BLE", length);
 
   // k_msgq_put(&send_msgq, &data);
   if (bt_nus_send(NULL, data_array, length)) {

@@ -91,7 +91,6 @@ void ble_send_thread(void *arg1, void *arg2, void *arg3) {
     ret = k_msgq_get(&send_msgq, &send_data, K_FOREVER);
     if (ret == 0) {
       // Implement actual BLE send logic here
-      LOG_INF("Sending data over BLE");
       send_data_ble(&send_data, BLE_PCKT_SEND_SIZE);
     } else {
       LOG_ERR("Failed to get data from send_msgq (err %d)", ret);
@@ -135,7 +134,7 @@ void process_received_data_thread(void *arg1, void *arg2, void *arg3) {
     if (ble_data_available.available) {
       ble_data_available.available = false;
 
-      LOG_DBG("Received data from BLE NUS. Writing data on UART.");
+      LOG_DBG("Received data from BLE");
       // NRF_LOG_HEXDUMP_DEBUG(p_evt->params.rx_data.p_data, p_evt->params.rx_data.length);
 
       // When in STATE_PROGRAM_WOLF, other commands are ommited
@@ -252,7 +251,7 @@ void process_received_data_thread(void *arg1, void *arg2, void *arg3) {
           break;
 
         default:
-          LOG_DBG("Ping default");
+          LOG_DBG("Ping DEFAULT");
 
           if (get_state_biogap() == STATE_GAP9_MASTER) {
             LOG_DBG("Ping STATE_GAP9_MASTER");
@@ -263,7 +262,6 @@ void process_received_data_thread(void *arg1, void *arg2, void *arg3) {
             // flag_notify_wolf_uart = true;
 
           } else {
-            LOG_DBG("else");
             if (WaitingForConfig == 0) {
               LOG_DBG("WaitingForConfig==0");
               switch (ble_data_available.data[0]) {
