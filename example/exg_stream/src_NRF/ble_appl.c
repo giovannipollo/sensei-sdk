@@ -30,6 +30,7 @@
 #include "ads_spi.h"
 #include "common.h"
 #include "lis2duxs12_sensor.h"
+#include "mic_appl.h"
 
 #include <zephyr/logging/log.h>
 #include <zephyr/logging/log_ctrl.h>
@@ -277,6 +278,18 @@ void process_received_data_thread(void *arg1, void *arg2, void *arg3) {
                 LOG_DBG("Ping STOP_STREAMING_NORDIC");
                 // nrf_gpio_pin_toggle(LED1);
                 Set_ADS_Function(STOP);
+                break;
+
+              case START_MIC_STREAMING:
+                LOG_DBG("Ping START_MIC_STREAMING");
+                set_SM_state(S_NORDIC_STREAM);
+                mic_start_streaming();
+                break;
+
+              case STOP_MIC_STREAMING:
+                LOG_DBG("Ping STOP_MIC_STREAMING");
+                set_SM_state(S_LOW_POWER_CONNECTED);
+                mic_stop_streaming();
                 break;
 
               default:

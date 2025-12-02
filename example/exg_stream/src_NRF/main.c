@@ -49,6 +49,7 @@
 #include "ads_spi.h"
 #include "ble_appl.h"
 #include "common.h"
+#include "mic_appl.h"
 #include "state_machine.h"
 
 static const struct device *const uart_dev = DEVICE_DT_GET_ONE(zephyr_cdc_acm_uart);
@@ -127,6 +128,14 @@ int main(void) {
   init_ble_comm();
   LOG_INF("Starting BLE adverts...");
   start_bluetooth_adverts();
+
+  // Initialize microphone
+  LOG_INF("Initializing microphone...");
+  if (mic_init() != 0) {
+    LOG_WRN("Microphone initialization failed - mic streaming disabled");
+  } else {
+    LOG_INF("Microphone initialized");
+  }
 
   // Initialize and start state machine
   LOG_INF("Initializing state machine...");
