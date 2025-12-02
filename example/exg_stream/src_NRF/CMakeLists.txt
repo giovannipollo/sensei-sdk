@@ -38,6 +38,7 @@ target_sources(app PRIVATE
     lis2duxs12_sensor.c
     lis2duxs12_reg.c
     state_machine.c
+    mic_appl.c
 )
 target_include_directories(app PRIVATE
     .

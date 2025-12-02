@@ -3,6 +3,8 @@
  *
  * File: pwr_bsp.h
  *
+ * Last edited: 30.10.2025
+ *
  * Copyright (c) 2024 ETH Zurich and University of Bologna
  *
  * Authors:

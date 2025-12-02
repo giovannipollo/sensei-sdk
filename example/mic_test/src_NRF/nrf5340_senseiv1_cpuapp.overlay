@@ -18,7 +18,7 @@
 &pinctrl {
     pdm_default: pdm_default {
         group1 {
-            psels = <NRF_PSEL(PDM_CLK, 1, 11)>,
+            psels = <NRF_PSEL(PDM_CLK, 0, 4)>,
                     <NRF_PSEL(PDM_DIN, 0, 12)>;
         };
     };
