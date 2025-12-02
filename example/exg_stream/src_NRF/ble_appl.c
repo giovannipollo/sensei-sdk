@@ -51,14 +51,6 @@ K_MSGQ_DEFINE(receive_msgq, BLE_PCKT_RECEIVE_SIZE, RECEIVE_QUEUE_SIZE, 1);
 #define BLE_RECEIVE_STACK_SIZE 2048
 #define BLE_RECEIVE_PRIORITY 4
 
-/* Define thread stacks */
-// K_THREAD_STACK_DEFINE(ble_send_stack, BLE_SEND_STACK_SIZE);
-// K_THREAD_STACK_DEFINE(ble_receive_stack, BLE_RECEIVE_STACK_SIZE);
-
-/* Thread data structures */
-// struct k_thread ble_send_tid;
-// struct k_thread ble_receive_tid;
-
 BLE_nus_data ble_data_available;
 
 uint8_t WaitingForConfig = 0;
@@ -100,225 +92,235 @@ void ble_send_thread(void *arg1, void *arg2, void *arg3) {
 }
 
 /**
+ * @brief Handle Configuration Data Reception
+ *
+ * Processes configuration parameters received from BLE after a
+ * START_STREAMING_NORDIC command. The configuration data contains
+ * 5 bytes: [SAMPLE_RATE, ADS_MODE, reserved, reserved, GAIN].
+ * After processing, WaitingForConfig is cleared to resume normal operation.
+ */
+static void handle_config_reception(void) {
+  LOG_DBG("Config received");
+  WaitingForConfig = 0;
+  ConfigParams[0] = ble_data_available.data[0];
+  ConfigParams[1] = ble_data_available.data[1];
+  ConfigParams[2] = ble_data_available.data[2];
+  ConfigParams[3] = ble_data_available.data[3];
+  ConfigParams[4] = ble_data_available.data[4];
+}
+
+/**
+ * @brief Forward BLE Data to GAP9 via UART
+ *
+ * When the board is in STATE_GAP9_MASTER mode, all received BLE data
+ * is forwarded to the GAP9 processor through UART. The data is copied
+ * to the UART packet buffer and marked as available for transmission.
+ */
+static void forward_to_gap9(void) {
+  LOG_DBG("Forwarding to GAP9");
+  pck_uart_wolf.data_len = ble_data_available.size;
+  memcpy(pck_uart_wolf.p_data, ble_data_available.data, pck_uart_wolf.data_len);
+  pck_uart_wolf.is_data_available = true;
+}
+
+/**
+ * @brief Process BLE Command
+ *
+ * Handles all BLE commands received from the connected device.
+ * Commands include battery state requests, device settings, streaming
+ * control (Nordic and microphone), board state management, and more.
+ *
+ * @param cmd The command byte received from BLE (first byte of packet)
+ */
+static void handle_ble_command(uint8_t cmd) {
+  switch (cmd) {
+  case REQUEST_BATTERY_STATE:
+    LOG_DBG("Ping REQUEST_BATTERY_STATE");
+    bat_data[0] = REQUEST_BATTERY_STATE;
+    bat_data[1] = bsp_is_charging();
+    bat_data[2] = 0;
+    bat_data[3] = (uint8_t)bsp_get_total_power_mw();
+    bat_data[4] = (uint8_t)bsp_get_battery_soc();
+    bat_data[5] = (uint8_t)bsp_get_battery_voltage();
+    bat_data[6] = (uint8_t)data_temp.heat.deg_c;
+    send_data_ble(bat_data, 7);
+    break;
+
+  case GET_DEVICE_SETTINGS:
+    LOG_DBG("Ping GET_DEVICE_SETTINGS");
+    SendDeviceSettings();
+    break;
+
+  case SET_DEVICE_SETTINGS:
+    LOG_DBG("Ping SET_DEVICE_SETTINGS");
+    break;
+
+  case REQUEST_CONNECTING_STRING:
+    LOG_DBG("Ping REQUEST_CONNECTING_STRING");
+    SendReady_BLE();
+    break;
+
+  case REQUEST_HARDWARE_VERSION:
+    LOG_DBG("Ping REQUEST_HARDWARE_VERSION");
+    SendHardwareVersion();
+    break;
+
+  case REQUEST_FIRMWARE_VERSION:
+    LOG_DBG("Ping REQUEST_FIRMWARE_VERSION");
+    SendFirmwareVersion();
+    break;
+
+  case REQUEST_AVAILABLE_SENSORS:
+    LOG_DBG("Ping REQUEST_AVAILABLE_SENSORS");
+    SendAvailableSensors();
+    break;
+
+  case GET_BOARD_STATE:
+    LOG_DBG("Ping GET_BOARD_STATE");
+    LOG_DBG("Sending current state: %d", biowolf_current_state);
+    send_data_ble(&biowolf_current_state, 1);
+    break;
+
+  case SET_BOARD_STATE:
+    LOG_DBG("Ping SET_BOARD_STATE");
+    LOG_DBG(".data[1], %d", ble_data_available.data[1]);
+    LOG_DBG(".data[2], %d", ble_data_available.data[2]);
+
+    if (ble_data_available.data[1] == 1) {
+      set_state_biogap(STATE_STREAMING_NORDIC);
+    } else {
+      set_state_biogap(STATE_GAP9_MASTER);
+    }
+
+    if (get_state_biogap() == STATE_STREAMING_NORDIC) {
+      Set_ADS_Function(STILL);
+    } else {
+      Set_ADS_Function(INIT_GAP9_CTRL);
+    }
+    break;
+
+  case RESET_GAP9:
+    LOG_DBG("Ping RESET_GAP9");
+    break;
+
+  case RESET_BOARD:
+    LOG_DBG("Ping RESET_BOARD");
+    break;
+
+  case SET_TRIGGER_STATE:
+    LOG_DBG("Ping SET_TRIGGER_STATE");
+    set_trigger(ble_data_available.data[1]);
+    break;
+
+  case ENTER_BOOTLOADERT_MODE:
+    LOG_DBG("Ping ENTER_BOOTLOADER_MODE");
+    break;
+
+  case GO_TO_SLEEP:
+    LOG_DBG("Ping GO_TO_SLEEP");
+    break;
+
+  case START_STREAMING_NORDIC:
+    LOG_DBG("Ping START_STREAMING_NORDIC");
+    set_SM_state(S_NORDIC_STREAM);
+    WaitingForConfig = 1;
+    Set_ADS_Function(START);
+    break;
+
+  case STOP_STREAMING_NORDIC:
+    LOG_DBG("Ping STOP_STREAMING_NORDIC");
+    set_SM_state(S_LOW_POWER_CONNECTED);
+    Set_ADS_Function(STOP);
+    break;
+
+  case START_MIC_STREAMING:
+    LOG_DBG("Ping START_MIC_STREAMING");
+    set_SM_state(S_NORDIC_STREAM);
+    mic_start_streaming();
+    break;
+
+  case STOP_MIC_STREAMING:
+    LOG_DBG("Ping STOP_MIC_STREAMING");
+    set_SM_state(S_LOW_POWER_CONNECTED);
+    mic_stop_streaming();
+    break;
+  }
+}
+
+/**
  * @brief BLE Process Received Data Thread
  *
- * This thread processes the received data from the receive message queue.
+ * Main thread for processing data received over BLE. This thread waits
+ * on a semaphore for incoming data and handles it based on the current
+ * board state:
+ * - STATE_PROGRAM_WOLF: Data is ignored (reserved for future DFU support)
+ * - WaitingForConfig: Data is treated as configuration parameters
+ * - STATE_GAP9_MASTER: Data is forwarded to GAP9 via UART
+ * - Otherwise: Data is processed as a BLE command
  *
  * @param arg1 Unused
  * @param arg2 Unused
  * @param arg3 Unused
  */
-
 void process_received_data_thread(void *arg1, void *arg2, void *arg3) {
   LOG_INF("BLE receive thread started");
 
   while (1) {
-
     k_sem_take(&ble_data_received, K_FOREVER);
 
-#ifdef PRINT_RECEIVED_DATA
-    bool is_ascii = true;
-    for (int i = 0; i < ble_data_available.size; i++) {
-      if (ble_data_available.data[i] < 0x20 || ble_data_available.data[i] > 0x7E) { // Non-printable ASCII range
-        is_ascii = false;
-        break;
-      }
+    if (!ble_data_available.available)
+      continue;
+
+    ble_data_available.available = false;
+    LOG_DBG("Received data from BLE");
+
+    // Skip processing in programming mode
+    if (get_state_biogap() == STATE_PROGRAM_WOLF)
+      continue;
+
+    // Handle config reception after START_STREAMING_NORDIC
+    if (WaitingForConfig == 1) {
+      handle_config_reception();
+      continue;
     }
-    if (is_ascii) {
-      LOG_INF("Received ASCII data: %.*s", ble_data_available.size, ble_data_available.data);
-    } else {
-      LOG_HEXDUMP_INF(ble_data_available.data, ble_data_available.size, "Received Binary Data:");
+
+    // Forward to GAP9 if in master mode
+    if (get_state_biogap() == STATE_GAP9_MASTER) {
+      forward_to_gap9();
+      continue;
     }
-#endif
 
-    // Process received data here
-    if (ble_data_available.available) {
-      ble_data_available.available = false;
-
-      LOG_DBG("Received data from BLE");
-      // NRF_LOG_HEXDUMP_DEBUG(p_evt->params.rx_data.p_data, p_evt->params.rx_data.length);
-
-      // When in STATE_PROGRAM_WOLF, other commands are ommited
-
-      if (get_state_biogap() == STATE_PROGRAM_WOLF) {
-        // Copy data and make it available
-        // memcpy(pck_ble_dfu_wolf.data,ble_data_available.data,ble_data_available.size);
-        // pck_ble_dfu_wolf.available = true;
-        // pck_ble_dfu_wolf.size = pck_ble_dfu_wolf.data[PCK_PHY_SIZE_INX];
-      } else {
-        // Normal state
-        uint8_t msg = ble_data_available.data[0];
-        LOG_DBG("-----------BLE COMMAND----------");
-        int k = 0;
-        for (k = 0; k < ble_data_available.size; k++) {
-          LOG_DBG("Data[%d]: %d", k, ble_data_available.data[k]);
-        }
-        LOG_DBG("-----------END COMMAND----------");
-        switch (msg) {
-        case REQUEST_BATTERY_STATE:
-          LOG_DBG("Ping REQUEST_BATTERY_STATE");
-          bat_data[0] = REQUEST_BATTERY_STATE;
-          bat_data[1] = bsp_is_charging();
-          bat_data[2] = 0;
-          bat_data[3] = (uint8_t)bsp_get_total_power_mw();
-          bat_data[4] = (uint8_t)bsp_get_battery_soc();
-          bat_data[5] = (uint8_t)bsp_get_battery_voltage();
-          bat_data[6] = (uint8_t)data_temp.heat.deg_c;
-
-          send_data_ble(bat_data, 7);
-          break;
-
-        case GET_DEVICE_SETTINGS:
-          LOG_DBG("Ping GET_DEVICE_SETTINGS");
-          SendDeviceSettings();
-          break;
-
-        case SET_DEVICE_SETTINGS:
-          LOG_DBG("Ping SET_DEVICE_SETTINGS");
-          // set_device_througt_BLE_PCK(&ble_data_available.data[1], ble_data_available.size-1);
-          break;
-
-        case REQUEST_CONNECTING_STRING:
-          LOG_DBG("Ping REQUEST_CONNECTING_STRING");
-          SendReady_BLE();
-          break;
-
-        case REQUEST_HARDWARE_VERSION:
-          LOG_DBG("Ping REQUEST_HARDWARE_VERSION");
-          SendHardwareVersion();
-          break;
-
-        case REQUEST_FIRMWARE_VERSION:
-          LOG_DBG("Ping REQUEST_FIRMWARE_VERSION");
-          SendFirmwareVersion();
-          break;
-
-        case REQUEST_AVAILABLE_SENSORS:
-          LOG_DBG("Ping REQUEST_AVAILABLE_SENSORS");
-          SendAvailableSensors();
-          break;
-
-        case GET_BOARD_STATE:
-          LOG_DBG("Ping GET_BOARD_STATE");
-          LOG_DBG("Sending current state: %d", biowolf_current_state);
-          send_data_ble(&biowolf_current_state, 1);
-          break;
-
-        case SET_BOARD_STATE:
-          LOG_DBG("Ping STATE_SWITCH");
-          LOG_DBG(".data[1], %d", ble_data_available.data[1]);
-          LOG_DBG(".data[2], %d", ble_data_available.data[2]);
-
-          if (ble_data_available.data[1] == 1) {
-            set_state_biogap(STATE_STREAMING_NORDIC);
-            // LOG_DBG("--> BOARD LOG --> New state: %d",switch_state);
-          } else {
-            set_state_biogap(STATE_GAP9_MASTER);
-            // set_state_biogap(ble_data_available.data[2]);
-            // LOG_DBG("--> BOARD LOG --> New state: %d",ble_data_available.data[2]);
-          }
-
-          if (get_state_biogap() == STATE_STREAMING_NORDIC) {
-            Set_ADS_Function(STILL);
-          } else {
-            Set_ADS_Function(INIT_GAP9_CTRL);
-          }
-
-          break;
-
-        case RESET_GAP9:
-          // Set_ADS_Function(RESTART_WOLF);
-          break;
-
-        case RESET_BOARD:
-          // blabla
-          break;
-
-        case SET_TRIGGER_STATE:
-          set_trigger(ble_data_available.data[1]);
-          break;
-
-        case ENTER_BOOTLOADERT_MODE:
-          // nrf_sdh_disable_request();
-          // nrf_power_gpregret_set(BOOTLOADER_DFU_START);
-          // sd_nvic_SystemReset();
-          break;
-
-        case GO_TO_SLEEP:
-          // TODO
-          // IMU_NOT_SUPPORTED
-          // gotosleep_NFC();
-          // set_state_power(STATE_POWER_SAVE);
-          break;
-
-        default:
-          LOG_DBG("Ping DEFAULT");
-
-          if (get_state_biogap() == STATE_GAP9_MASTER) {
-            LOG_DBG("Ping STATE_GAP9_MASTER");
-            pck_uart_wolf.data_len = ble_data_available.size;
-            // pck_uart_wolf.p_data = &p_evt->params.rx_data.p_data[0];
-            memcpy(pck_uart_wolf.p_data, ble_data_available.data, pck_uart_wolf.data_len);
-            pck_uart_wolf.is_data_available = true;
-            // flag_notify_wolf_uart = true;
-
-          } else {
-            if (WaitingForConfig == 0) {
-              LOG_DBG("WaitingForConfig==0");
-              switch (ble_data_available.data[0]) {
-              case START_STREAMING_NORDIC:
-                // nrf_gpio_pin_toggle(LED1);
-                set_SM_state(S_NORDIC_STREAM);
-                LOG_DBG("Ping START_STREAMING_NORDIC");
-                WaitingForConfig = 1;
-                Set_ADS_Function(START);
-                break;
-              case STOP_STREAMING_NORDIC:
-                set_SM_state(S_LOW_POWER_CONNECTED);
-                LOG_DBG("Ping STOP_STREAMING_NORDIC");
-                // nrf_gpio_pin_toggle(LED1);
-                Set_ADS_Function(STOP);
-                break;
-
-              case START_MIC_STREAMING:
-                LOG_DBG("Ping START_MIC_STREAMING");
-                set_SM_state(S_NORDIC_STREAM);
-                mic_start_streaming();
-                break;
-
-              case STOP_MIC_STREAMING:
-                LOG_DBG("Ping STOP_MIC_STREAMING");
-                set_SM_state(S_LOW_POWER_CONNECTED);
-                mic_stop_streaming();
-                break;
-
-              default:
-                LOG_DBG("default");
-                break;
-              }
-            } else {
-              LOG_DBG("Config received");
-              WaitingForConfig = 0;
-              ConfigParams[0] = ble_data_available.data[0];
-              ConfigParams[1] = ble_data_available.data[1];
-              ConfigParams[2] = ble_data_available.data[2];
-              ConfigParams[3] = ble_data_available.data[3];
-              ConfigParams[4] = ble_data_available.data[4];
-            }
-          }
-          break;
-        }
-      }
+    // Process BLE command
+    uint8_t cmd = ble_data_available.data[0];
+    LOG_DBG("-----------BLE COMMAND----------");
+    for (int k = 0; k < ble_data_available.size; k++) {
+      LOG_DBG("Data[%d]: %d", k, ble_data_available.data[k]);
     }
+    LOG_DBG("-----------END COMMAND----------");
+
+    handle_ble_command(cmd);
   }
 }
 
+/**
+ * @brief Get Configuration Parameters
+ *
+ * Blocks until configuration parameters are received from BLE.
+ * This function is typically called after START_STREAMING_NORDIC
+ * to wait for the streaming configuration.
+ *
+ * @param InitParams Pointer to array where configuration will be copied.
+ *                   Must have space for at least 5 bytes:
+ *                   [SAMPLE_RATE, ADS_MODE, reserved, reserved, GAIN]
+ *
+ * @return 0 on success
+ */
 uint32_t GetConfigParam(uint8_t *InitParams) {
   LOG_INF("Waiting for configuration parameters from BLE...");
-  
+
   /* Wait until configuration parameters are received */
   while (WaitingForConfig == 1) {
-  }; 
+  };
 
   LOG_INF("Configuration parameters received from BLE.");
   for (int i = 0; i < 5; i++) {
@@ -368,10 +370,30 @@ void add_data_to_send_buffer(uint8_t *data) {
  */
 void init_ble_comm() { LOG_INF("Initializing BLE communication"); }
 
+/**
+ * @brief Set Board State
+ *
+ * Updates the current biowolf/biogap board state.
+ *
+ * @param state The new state to set (e.g., STATE_STREAMING_NORDIC, STATE_GAP9_MASTER)
+ */
 void set_state_biogap(int8_t state) { biowolf_current_state = state; }
 
+/**
+ * @brief Get Board State
+ *
+ * Returns the current biowolf/biogap board state.
+ *
+ * @return The current board state
+ */
 int8_t get_state_biogap(void) { return biowolf_current_state; }
 
+/**
+ * @brief Send Hardware Version
+ *
+ * Sends the hardware version and revision over BLE.
+ * Packet format: [REQUEST_HARDWARE_VERSION, HARDWARE_VERSION, HARDWARE_REVISION, BLE_PCK_TAILER]
+ */
 void SendHardwareVersion() {
 
   uint8_t hardware_version_data[4];
@@ -383,6 +405,12 @@ void SendHardwareVersion() {
   return (send_data_ble(&hardware_version_data, sizeof(hardware_version_data)));
 }
 
+/**
+ * @brief Send Firmware Version
+ *
+ * Sends the firmware version and revision over BLE.
+ * Packet format: [REQUEST_FIRMWARE_VERSION, FIRMWARE_VERSION, FIRMWARE_REVISION, BLE_PCK_TAILER]
+ */
 void SendFirmwareVersion() {
   uint8_t firmware_version_data[4];
   firmware_version_data[0] = REQUEST_FIRMWARE_VERSION;
@@ -393,6 +421,12 @@ void SendFirmwareVersion() {
   return (send_data_ble(&firmware_version_data, sizeof(firmware_version_data)));
 }
 
+/**
+ * @brief Send Available Sensors
+ *
+ * Sends information about available sensors over BLE.
+ * Packet format: [REQUEST_AVAILABLE_SENSORS, available_flag, reserved, BLE_PCK_TAILER]
+ */
 void SendAvailableSensors() {
   uint8_t available_sensors[4];
   available_sensors[0] = REQUEST_AVAILABLE_SENSORS;
@@ -403,14 +437,28 @@ void SendAvailableSensors() {
   return (send_data_ble(&available_sensors, sizeof(available_sensors)));
 }
 
+/**
+ * @brief Send Device Settings
+ *
+ * Sends the current device settings over BLE.
+ * Currently not implemented.
+ */
 void SendDeviceSettings() {}
 
+/**
+ * @brief Send Ready String
+ *
+ * Sends the ready/connection confirmation string "BWF16" over BLE.
+ * This is used to confirm successful connection to the client.
+ */
 void SendReady_BLE() {
   uint8_t ready[5] = {'B', 'W', 'F', '1', '6'};
   return (send_data_ble(&ready[0], 5));
 }
 
+/* BLE Send Thread Definition */
 K_THREAD_DEFINE(ble_send_tid, BLE_SEND_STACK_SIZE, ble_send_thread, NULL, NULL, NULL, BLE_SEND_PRIORITY, 0, 0);
 
+/* BLE Receive Thread Definition */
 K_THREAD_DEFINE(ble_receive_tid, BLE_RECEIVE_STACK_SIZE, process_received_data_thread, NULL, NULL, NULL,
                 BLE_RECEIVE_PRIORITY, 0, 0);
