@@ -63,6 +63,7 @@ uint8_t bat_data[7];
 uart_to_pulp_data pck_uart_wolf;
 
 K_SEM_DEFINE(ble_data_received, 0, 1);
+K_SEM_DEFINE(config_received_sem, 0, 1);
 
 /**
  * @brief BLE Send Thread
@@ -98,16 +99,18 @@ void ble_send_thread(void *arg1, void *arg2, void *arg3) {
  * Processes configuration parameters received from BLE after a
  * START_STREAMING_NORDIC command. The configuration data contains
  * 5 bytes: [SAMPLE_RATE, ADS_MODE, reserved, reserved, GAIN].
- * After processing, WaitingForConfig is cleared to resume normal operation.
+ * After processing, signals the config_received_sem semaphore to
+ * unblock GetConfigParam().
  */
 static void handle_config_reception(void) {
   LOG_DBG("Config received");
-  WaitingForConfig = 0;
   ConfigParams[0] = ble_data_available.data[0];
   ConfigParams[1] = ble_data_available.data[1];
   ConfigParams[2] = ble_data_available.data[2];
   ConfigParams[3] = ble_data_available.data[3];
   ConfigParams[4] = ble_data_available.data[4];
+  WaitingForConfig = 0;
+  k_sem_give(&config_received_sem);
 }
 
 /**
@@ -232,6 +235,7 @@ static void handle_ble_command(uint8_t cmd) {
     LOG_DBG("Ping STOP_STREAMING_NORDIC");
     set_SM_state(S_LOW_POWER_CONNECTED);
     Set_ADS_Function(STOP);
+    ResetConfigState(); /* Reset config state for next session */
     break;
 
   case START_MIC_STREAMING:
@@ -248,7 +252,7 @@ static void handle_ble_command(uint8_t cmd) {
   case START_COMBINED_STREAMING:
     LOG_DBG("Ping START_COMBINED_STREAMING");
     set_SM_state(S_NORDIC_STREAM);
-    sync_begin(2);  /* Setup sync barrier for 2 subsystems (EXG + MIC) */
+    sync_begin(2); /* Setup sync barrier for 2 subsystems (EXG + MIC) */
     mic_start_streaming();
     WaitingForConfig = 1;
     Set_ADS_Function(START);
@@ -258,7 +262,8 @@ static void handle_ble_command(uint8_t cmd) {
     set_SM_state(S_LOW_POWER_CONNECTED);
     mic_stop_streaming();
     Set_ADS_Function(STOP);
-    sync_reset();  /* Clean up sync state */
+    sync_reset();       /* Clean up sync state */
+    ResetConfigState(); /* Reset config state for next session */
     break;
   }
 }
@@ -308,12 +313,9 @@ void process_received_data_thread(void *arg1, void *arg2, void *arg3) {
 
     // Process BLE command
     uint8_t cmd = ble_data_available.data[0];
-    LOG_DBG("-----------BLE COMMAND----------");
     for (int k = 0; k < ble_data_available.size; k++) {
       LOG_DBG("Data[%d]: %d", k, ble_data_available.data[k]);
     }
-    LOG_DBG("-----------END COMMAND----------");
-
     handle_ble_command(cmd);
   }
 }
@@ -321,22 +323,25 @@ void process_received_data_thread(void *arg1, void *arg2, void *arg3) {
 /**
  * @brief Get Configuration Parameters
  *
- * Blocks until configuration parameters are received from BLE.
- * This function is typically called after START_STREAMING_NORDIC
- * to wait for the streaming configuration.
+ * Blocks until configuration parameters are received from BLE using
+ * a semaphore (no busy-waiting). This function is typically called
+ * after START_STREAMING_NORDIC to wait for the streaming configuration.
  *
  * @param InitParams Pointer to array where configuration will be copied.
  *                   Must have space for at least 5 bytes:
  *                   [SAMPLE_RATE, ADS_MODE, reserved, reserved, GAIN]
  *
- * @return 0 on success
+ * @return 0 on success, -EAGAIN on timeout
  */
 uint32_t GetConfigParam(uint8_t *InitParams) {
   LOG_INF("Waiting for configuration parameters from BLE...");
 
-  /* Wait until configuration parameters are received */
-  while (WaitingForConfig == 1) {
-  };
+  /* Block until config is received (with 30 second timeout) */
+  int ret = k_sem_take(&config_received_sem, K_SECONDS(30));
+  if (ret != 0) {
+    LOG_ERR("Timeout waiting for configuration parameters");
+    return -EAGAIN;
+  }
 
   LOG_INF("Configuration parameters received from BLE.");
   for (int i = 0; i < 5; i++) {
@@ -344,6 +349,18 @@ uint32_t GetConfigParam(uint8_t *InitParams) {
     InitParams[i] = ConfigParams[i];
   }
   return 0;
+}
+
+/**
+ * @brief Reset Configuration State
+ *
+ * Resets the configuration reception state. Should be called when
+ * stopping streaming to ensure clean state for next session.
+ * Clears WaitingForConfig flag and resets the semaphore.
+ */
+void ResetConfigState(void) {
+  WaitingForConfig = 0;
+  k_sem_reset(&config_received_sem);
 }
 
 // Funtion to put data into receive buffer

@@ -89,6 +89,7 @@ void set_state_biogap(int8_t state);
 int8_t get_state_biogap(void);
 
 uint32_t GetConfigParam(uint8_t *InitParams);
+void ResetConfigState(void);
 
 void SendHardwareVersion();
 void SendFirmwareVersion();
