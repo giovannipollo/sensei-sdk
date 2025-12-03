@@ -244,6 +244,19 @@ static void handle_ble_command(uint8_t cmd) {
     set_SM_state(S_LOW_POWER_CONNECTED);
     mic_stop_streaming();
     break;
+  case START_COMBINED_STREAMING:
+    LOG_DBG("Ping START_COMBINED_STREAMING");
+    set_SM_state(S_NORDIC_STREAM);
+    mic_start_streaming();
+    WaitingForConfig = 1;
+    Set_ADS_Function(START);
+    break;
+  case STOP_COMBINED_STREAMING:
+    LOG_DBG("Ping STOP_COMBINED_STREAMING");
+    set_SM_state(S_LOW_POWER_CONNECTED);
+    mic_stop_streaming();
+    Set_ADS_Function(STOP);
+    break;
   }
 }
 
