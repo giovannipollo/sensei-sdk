@@ -914,8 +914,6 @@ void ADS_Stop() {
  * @note First 500 samples are skipped if skip_reads flag is set
  */
 void ADS_Start() {
-  // printf("...Starting ADS...\n");
-
   pr_word[0] = _START;
   pr_word[1] = _RDATAC;
   spi_xfer_done = false;
