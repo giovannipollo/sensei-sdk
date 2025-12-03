@@ -41,7 +41,7 @@
 #include <zephyr/logging/log_ctrl.h>
 
 /* Initialize the logging module */
-LOG_MODULE_REGISTER(ads_appl, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(ads_appl, LOG_LEVEL_INF);
 
 /*==============================================================================
  * Module Variables

@@ -31,12 +31,13 @@
 #include "common.h"
 #include "lis2duxs12_sensor.h"
 #include "mic_appl.h"
+#include "sync_streaming.h"
 
 #include <zephyr/logging/log.h>
 #include <zephyr/logging/log_ctrl.h>
 
 /* Initialize the logging module */
-LOG_MODULE_REGISTER(ble_appl, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(ble_appl, LOG_LEVEL_ERR);
 
 // #define PRINT_RECEIVED_DATA
 
@@ -247,6 +248,7 @@ static void handle_ble_command(uint8_t cmd) {
   case START_COMBINED_STREAMING:
     LOG_DBG("Ping START_COMBINED_STREAMING");
     set_SM_state(S_NORDIC_STREAM);
+    sync_begin(2);  /* Setup sync barrier for 2 subsystems (EXG + MIC) */
     mic_start_streaming();
     WaitingForConfig = 1;
     Set_ADS_Function(START);
@@ -256,6 +258,7 @@ static void handle_ble_command(uint8_t cmd) {
     set_SM_state(S_LOW_POWER_CONNECTED);
     mic_stop_streaming();
     Set_ADS_Function(STOP);
+    sync_reset();  /* Clean up sync state */
     break;
   }
 }

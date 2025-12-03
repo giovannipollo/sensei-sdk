@@ -36,6 +36,7 @@
 
 #include "mic_appl.h"
 #include "ble_appl.h"
+#include "sync_streaming.h"
 
 #include <string.h>
 #include <zephyr/audio/dmic.h>
@@ -138,6 +139,15 @@ static void mic_streaming_thread(void *arg1, void *arg2, void *arg3) {
       continue;
     }
 
+    if (sync_is_active()) {
+      LOG_INF("Mic ready, waiting at sync barrier...");
+      ret = sync_wait(SYNC_SUBSYSTEM_MIC, 5000);
+      if (ret != 0) {
+        LOG_ERR("Sync wait failed: %d", ret);
+        mic_state = MIC_STATE_ERROR;
+        continue;
+      }
+    }
     /* Start the DMIC */
     ret = dmic_trigger(dmic_dev, DMIC_TRIGGER_START);
     if (ret < 0) {

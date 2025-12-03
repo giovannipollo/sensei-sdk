@@ -37,9 +37,12 @@
 #include "ads_spi.h"
 #include "ble_appl.h"
 #include "common.h"
+#include "sync_streaming.h"
 
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+
+LOG_MODULE_REGISTER(board_streaming, LOG_LEVEL_DBG);
 
 bool first_run = true;
 
@@ -60,6 +63,18 @@ void loop_streaming() {
       ADS_check_ID(ADS1298_B);
       ADS_Init(InitParams, ADS1298_A); // Initialize ADS
       ADS_Init(InitParams, ADS1298_B); // Initialize ADS
+
+      /* If synchronized streaming is active, wait for other subsystems */
+      if (sync_is_active()) {
+        LOG_INF("EXG ready, waiting at sync barrier...");
+        int ret = sync_wait(SYNC_SUBSYSTEM_EXG, 5000);  /* 5 second timeout */
+        if (ret != 0) {
+          LOG_ERR("Sync wait failed: %d", ret);
+          Set_ADS_Function(STILL);
+          break;
+        }
+      }
+
       ADS_Start();                     // Start ADS
       Set_ADS_Function(READ);
       first_run = false;
@@ -72,6 +87,18 @@ void loop_streaming() {
       // Analog_ON();                  // Turn on analog section
       ADS_Init(InitParams, ADS1298_A); // Initialize ADS
       ADS_Init(InitParams, ADS1298_B); // Initialize ADS
+
+      /* If synchronized streaming is active, wait for other subsystems */
+      if (sync_is_active()) {
+        LOG_INF("EXG ready, waiting at sync barrier...");
+        int ret = sync_wait(SYNC_SUBSYSTEM_EXG, 5000);  /* 5 second timeout */
+        if (ret != 0) {
+          LOG_ERR("Sync wait failed: %d", ret);
+          Set_ADS_Function(STILL);
+          break;
+        }
+      }
+
       ADS_Start();                     // Start ADS
       Set_ADS_Function(READ);
     }
@@ -82,6 +109,7 @@ void loop_streaming() {
     if (!first_run) {
       Set_ADS_Function(STILL);
       ADS_Stop(); // Stop ADS
+      sync_reset();  // Reset sync state for next session
       k_msleep(100);
       // Analog_OFF();                       //Power Down Analog
       // if(get_es_state()==ESQ_RUNNING)

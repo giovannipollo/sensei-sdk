@@ -38,16 +38,13 @@
 
 #include <bluetooth/services/nsms.h>
 #include <bluetooth/services/nus.h>
-
-#define LOG_LEVEL LOG_LEVEL_DBG
 #include <zephyr/logging/log.h>
+#include <zephyr/settings/settings.h>
 
 #include "ads_appl.h"
 #include "ble_appl.h"
 
-LOG_MODULE_REGISTER(main_bluetooth, LOG_LEVEL_DBG);
-
-#include <zephyr/settings/settings.h>
+LOG_MODULE_REGISTER(main_bluetooth, LOG_LEVEL_INF);
 
 #define TEST_DATA_LEN 240
 #define PATTERN "Hello BLE NUS Test!\n"
