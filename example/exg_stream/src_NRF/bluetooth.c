@@ -44,7 +44,7 @@
 #include "ads_appl.h"
 #include "ble_appl.h"
 
-LOG_MODULE_REGISTER(main_bluetooth, LOG_LEVEL_INF);
+LOG_MODULE_REGISTER(main_bluetooth, LOG_LEVEL_DBG);
 
 #define TEST_DATA_LEN 240
 #define PATTERN "Hello BLE NUS Test!\n"

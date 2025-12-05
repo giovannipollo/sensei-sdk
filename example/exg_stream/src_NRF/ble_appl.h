@@ -33,11 +33,22 @@
 
 // BLE application definitions
 /* Define message queue sizes (number of messages) */
-#define SEND_QUEUE_SIZE 16    // Number of BLE packets that can be queued for sending
+#define SEND_QUEUE_SIZE 64    // Number of BLE packets that can be queued for sending
 #define RECEIVE_QUEUE_SIZE 16 // Number of BLE packets that can be queued for receiving
 
-#define BLE_PCKT_SEND_SIZE 234    // Size of each packet in bytes
-#define BLE_PCKT_RECEIVE_SIZE 234 // Size of each packet in bytes
+#define BLE_PCKT_MAX_SIZE 244     // Maximum BLE packet size (must fit within MTU)
+#define BLE_PCKT_RECEIVE_SIZE 234 // Size of each received packet in bytes
+
+/**
+ * @brief BLE packet structure for variable-size packet support
+ * 
+ * Allows sending packets of different sizes through the same queue.
+ * Used for both EEG (234 bytes) and MIC (131 bytes) packets.
+ */
+typedef struct {
+  uint16_t size;                   // Actual size of data in this packet
+  uint8_t data[BLE_PCKT_MAX_SIZE]; // Packet data buffer
+} ble_packet_t;
 
 /* Commands over BLE */
 #define GET_BOARD_STATE 15
@@ -82,7 +93,7 @@ extern struct k_sem ble_data_received;
 
 // Function prototypes
 void init_ble_comm(void);
-void add_data_to_send_buffer(uint8_t *data);
+void add_data_to_send_buffer(uint8_t *data, uint16_t size);
 void add_data_to_receive_buffer(uint8_t *data);
 
 void set_state_biogap(int8_t state);

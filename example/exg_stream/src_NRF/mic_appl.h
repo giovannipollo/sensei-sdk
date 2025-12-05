@@ -68,18 +68,23 @@
 /** BLE packet trailer for mic data (matches ExG format) */
 #define MIC_DATA_TRAILER 0x55
 
+/** Number of 16-bit samples per BLE packet */
+#define MIC_SAMPLES_PER_PACKET 64
+
 /** 
  * Audio payload size per packet
- * Total packet: 234 bytes
+ * - Audio data: 128 bytes (64 samples × 2 bytes)
+ */
+#define MIC_AUDIO_PAYLOAD_SIZE (MIC_SAMPLES_PER_PACKET * MIC_BYTES_PER_SAMPLE)
+
+/** 
+ * Total MIC BLE packet size: 131 bytes
  * - Header: 1 byte
  * - Counter: 1 byte  
- * - Audio data: 231 bytes (115 samples × 2 bytes, with 1 byte padding)
+ * - Audio data: 128 bytes (64 samples × 2 bytes)
  * - Trailer: 1 byte
  */
-#define MIC_AUDIO_PAYLOAD_SIZE 231
-
-/** Number of 16-bit samples per BLE packet */
-#define MIC_SAMPLES_PER_PACKET (MIC_AUDIO_PAYLOAD_SIZE / MIC_BYTES_PER_SAMPLE)
+#define MIC_PCKT_SIZE (1 + 1 + MIC_AUDIO_PAYLOAD_SIZE + 1)
 
 /*==============================================================================
  * Type Definitions

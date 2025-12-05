@@ -401,7 +401,7 @@ static void spim_handler(nrfx_spim_evt_t const *p_event, void *p_context) {
           // BLE PCK tail
           ble_tx_buf[buf_current_size++] = BLE_PCK_TAILER;
 
-          add_data_to_send_buffer(ble_tx_buf);
+          add_data_to_send_buffer(ble_tx_buf, PCK_LNGTH);
         }
       }
 
@@ -872,8 +872,6 @@ void ADS_Init(uint8_t *InitParams, enum ADS_id_t ads_id) {
  * @note Both devices must be stopped for synchronized operation
  */
 void ADS_Stop() {
-  // STOP DEVICE
-
   skip_reads = true; // Flag to skip the fist samples as to make sure the signal is stable.
 
   /*
@@ -894,6 +892,18 @@ void ADS_Stop() {
   ads1298_write_spi(1, ADS1298_B);
   while (spi_xfer_done == false)
     ;
+}
+
+/**
+ * @brief Clear the skip_reads flag and reset skipped sample counter
+ *
+ * Call this after manually waiting for ADC settling (e.g., during
+ * synchronized streaming) to prevent additional sample skipping
+ * in process_ads_data().
+ */
+void ADS_clear_skip_reads() {
+  skip_reads = false;
+  skiped_samples = 0;
 }
 
 /**

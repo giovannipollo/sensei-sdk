@@ -64,10 +64,13 @@ void loop_streaming() {
       ADS_Init(InitParams, ADS1298_A); // Initialize ADS
       ADS_Init(InitParams, ADS1298_B); // Initialize ADS
 
-      /* If synchronized streaming is active, wait for other subsystems */
+      ADS_Start(); // Start ADS
+
+      /* Wait for ADC settling before sync barrier (500 samples @ 1kSPS = 500ms)
+       * This ensures EXG data starts at the same time as MIC after the barrier */
       if (sync_is_active()) {
         LOG_INF("EXG ready, waiting at sync barrier...");
-        int ret = sync_wait(SYNC_SUBSYSTEM_EXG, 5000);  /* 5 second timeout */
+        int ret = sync_wait(SYNC_SUBSYSTEM_EXG, 5000); /* 5 second timeout */
         if (ret != 0) {
           LOG_ERR("Sync wait failed: %d", ret);
           Set_ADS_Function(STILL);
@@ -75,7 +78,7 @@ void loop_streaming() {
         }
       }
 
-      ADS_Start();                     // Start ADS
+      ADS_clear_skip_reads(); // Clear the skip flag since we waited manually
       Set_ADS_Function(READ);
       first_run = false;
 
@@ -88,10 +91,13 @@ void loop_streaming() {
       ADS_Init(InitParams, ADS1298_A); // Initialize ADS
       ADS_Init(InitParams, ADS1298_B); // Initialize ADS
 
-      /* If synchronized streaming is active, wait for other subsystems */
+      ADS_Start(); // Start ADS
+
+      /* Wait for ADC settling before sync barrier (500 samples @ 1kSPS = 500ms)
+       * This ensures EXG data starts at the same time as MIC after the barrier */
       if (sync_is_active()) {
         LOG_INF("EXG ready, waiting at sync barrier...");
-        int ret = sync_wait(SYNC_SUBSYSTEM_EXG, 5000);  /* 5 second timeout */
+        int ret = sync_wait(SYNC_SUBSYSTEM_EXG, 5000); /* 5 second timeout */
         if (ret != 0) {
           LOG_ERR("Sync wait failed: %d", ret);
           Set_ADS_Function(STILL);
@@ -99,7 +105,7 @@ void loop_streaming() {
         }
       }
 
-      ADS_Start();                     // Start ADS
+      ADS_clear_skip_reads(); // Clear the skip flag since we waited manually
       Set_ADS_Function(READ);
     }
 
@@ -108,8 +114,8 @@ void loop_streaming() {
   case STOP:
     if (!first_run) {
       Set_ADS_Function(STILL);
-      ADS_Stop(); // Stop ADS
-      sync_reset();  // Reset sync state for next session
+      ADS_Stop();   // Stop ADS
+      sync_reset(); // Reset sync state for next session
       k_msleep(100);
       // Analog_OFF();                       //Power Down Analog
       // if(get_es_state()==ESQ_RUNNING)

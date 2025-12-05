@@ -51,7 +51,7 @@ LOG_MODULE_REGISTER(mic_appl, LOG_LEVEL_INF);
  * Private Definitions
  *============================================================================*/
 
-/* Size of a block for 100 ms of audio data */
+/* Size of a block for 10 ms of audio data (reduced from 100ms for better interleaving) */
 #define BLOCK_SIZE(_sample_rate, _number_of_channels)                                                                  \
   (MIC_BYTES_PER_SAMPLE * ((_sample_rate) / 10) * (_number_of_channels))
 
@@ -111,12 +111,13 @@ static struct dmic_cfg mic_cfg = {
  * @brief Microphone streaming thread
  *
  * Continuously reads audio data from the DMIC and sends it over BLE.
- * Packet format matches ExG format:
- *   [header(1)][counter(1)][audio_data(231)][trailer(1)] = 234 bytes
+ * Packet format:
+ *   [header(1)][counter(1)][audio_data(128)][trailer(1)] = 131 bytes
+ *   64 samples × 2 bytes = 128 bytes audio, matching 4 ms EEG packet timing
  */
 static void mic_streaming_thread(void *arg1, void *arg2, void *arg3) {
   int ret;
-  uint8_t ble_packet[BLE_PCKT_SEND_SIZE];
+  uint8_t ble_packet[MIC_PCKT_SIZE];
   uint8_t packet_counter = 0;
 
   /* Position in current packet where next samples will be written */
@@ -197,10 +198,10 @@ static void mic_streaming_thread(void *arg1, void *arg2, void *arg3) {
         if (packet_sample_offset >= MIC_SAMPLES_PER_PACKET) {
           /* Complete the packet */
           ble_packet[1] = packet_counter;
-          ble_packet[BLE_PCKT_SEND_SIZE - 1] = MIC_DATA_TRAILER;
+          ble_packet[MIC_PCKT_SIZE - 1] = MIC_DATA_TRAILER;
 
           /* Send via BLE queue */
-          add_data_to_send_buffer(ble_packet);
+          add_data_to_send_buffer(ble_packet, MIC_PCKT_SIZE);
 
           /* Prepare next packet */
           packet_counter++;

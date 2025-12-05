@@ -37,12 +37,12 @@
 #include <zephyr/logging/log_ctrl.h>
 
 /* Initialize the logging module */
-LOG_MODULE_REGISTER(ble_appl, LOG_LEVEL_ERR);
+LOG_MODULE_REGISTER(ble_appl, LOG_LEVEL_INF);
 
 // #define PRINT_RECEIVED_DATA
 
 /* Define message queues */
-K_MSGQ_DEFINE(send_msgq, BLE_PCKT_SEND_SIZE, SEND_QUEUE_SIZE, 1);
+K_MSGQ_DEFINE(send_msgq, sizeof(ble_packet_t), SEND_QUEUE_SIZE, 4);
 K_MSGQ_DEFINE(receive_msgq, BLE_PCKT_RECEIVE_SIZE, RECEIVE_QUEUE_SIZE, 1);
 
 /* Define stack sizes and priorities */
@@ -69,24 +69,24 @@ K_SEM_DEFINE(config_received_sem, 0, 1);
  * @brief BLE Send Thread
  *
  * This thread continuously retrieves data from the send message queue
- * and transmits it over BLE.
+ * and transmits it over BLE. Supports variable packet sizes.
  *
  * @param arg1 Unused
  * @param arg2 Unused
  * @param arg3 Unused
  */
 void ble_send_thread(void *arg1, void *arg2, void *arg3) {
-  uint8_t send_data[BLE_PCKT_SEND_SIZE];
+  ble_packet_t packet;
   int ret;
 
   LOG_INF("BLE send thread started");
 
   while (1) {
     // Retrieve data to send from the send_msgq
-    ret = k_msgq_get(&send_msgq, &send_data, K_FOREVER);
+    ret = k_msgq_get(&send_msgq, &packet, K_FOREVER);
     if (ret == 0) {
-      // Implement actual BLE send logic here
-      send_data_ble(&send_data, BLE_PCKT_SEND_SIZE);
+      // Send with actual packet size
+      send_data_ble(packet.data, packet.size);
     } else {
       LOG_ERR("Failed to get data from send_msgq (err %d)", ret);
     }
@@ -379,21 +379,30 @@ void add_data_to_receive_buffer(uint8_t *data) {
  * @brief Add Data to Send Buffer
  *
  * Enqueues data into the send message queue for transmission.
+ * Supports variable packet sizes.
  *
  * @param data The pointer to the byte array to be sent over BLE.
+ * @param size The size of the data to send in bytes.
  */
-void add_data_to_send_buffer(uint8_t *data) {
+void add_data_to_send_buffer(uint8_t *data, uint16_t size) {
   int ret;
-  // LOG_DBG("Start Data enqueued for sending");
+  ble_packet_t packet;
 
-  ret = k_msgq_put(&send_msgq, data, K_NO_WAIT);
-  /*
-  if (ret != 0) {
-      LOG_ERR("Send message queue overflow! Data not sent: %d (err %d)", data, ret);
-  } else {
-      LOG_DBG("Data enqueued for sending: %d", data);
+  // Validate size
+  if (size > BLE_PCKT_MAX_SIZE) {
+    LOG_ERR("Packet size %d exceeds max %d", size, BLE_PCKT_MAX_SIZE);
+    return;
   }
-  */
+
+  packet.size = size;
+  memcpy(packet.data, data, size);
+
+  ret = k_msgq_put(&send_msgq, &packet, K_NO_WAIT);
+  if (ret != 0) {
+    LOG_ERR("Send message queue overflow! Data not sent: %d (err %d)", data, ret);
+  } else {
+    LOG_DBG("Data enqueued for sending: %d", data);
+  }
 }
 
 /**

@@ -93,6 +93,15 @@ void ADS_Start();
 void ADS_Stop();
 
 /**
+ * @brief Clear the skip_reads flag and reset skipped sample counter
+ *
+ * Call this after manually waiting for ADC settling (e.g., during
+ * synchronized streaming) to prevent additional sample skipping
+ * in process_ads_data().
+ */
+void ADS_clear_skip_reads();
+
+/**
  * @brief Initialize an ADS1298 device with specified parameters
  *
  * Configures the ADS1298 registers for data acquisition:
