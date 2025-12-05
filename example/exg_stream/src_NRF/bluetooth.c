@@ -1,13 +1,11 @@
-
-
 /*
  * Copyright (c) 2012-2014 Wind River Systems, Inc.
  * Copyright (c) 2020 Prevas A/S
  * Copyright (c) 2025 ETH Zurich
  *
- * File: bluestooth.c
+ * File: bluetooth.c
  *
- * Last edited: 23.07.2025
+ * Last edited: 05.12.2025
  *
  *
  * Authors:
@@ -28,6 +26,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+/**
+ * @file bluetooth.c
+ * @brief Bluetooth Low Energy (BLE) Communication Implementation
+ *
+ * Implements BLE functionality for the SENSEI platform including:
+ * - Nordic UART Service (NUS) for data streaming
+ * - Connection parameter optimization for high throughput
+ * - Packet statistics for debugging transmission issues
+ *
+ * @see bluetooth.h for public API documentation
+ */
+
+#include "bluetooth.h"
+
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/gatt.h>
@@ -46,49 +59,86 @@
 
 LOG_MODULE_REGISTER(main_bluetooth, LOG_LEVEL_DBG);
 
+/*==============================================================================
+ * Private Definitions
+ *============================================================================*/
+
+/** @brief Test data length for throughput measurement */
 #define TEST_DATA_LEN 240
+
+/** @brief Test pattern for throughput measurement */
 #define PATTERN "Hello BLE NUS Test!\n"
 #define PATTERN_LEN (sizeof(PATTERN) - 1)
+
+/** @brief Number of transmissions for throughput test */
 #define NUM_TRANSMISSIONS 100
 
+/** @brief Device name from Kconfig */
 #define DEVICE_NAME CONFIG_BT_DEVICE_NAME
 #define DEVICE_NAME_LEN (sizeof(DEVICE_NAME) - 1)
+
+/** @brief BLE write thread priority */
 #define PRIORITY_BLE_THREAD 7
 
+/** @brief Timeout for throughput configuration */
 #define THROUGHPUT_CONFIG_TIMEOUT K_SECONDS(20)
 
-#define INTERVAL_MIN 0x6 // Minimum interval, 7.5 ms
-#define INTERVAL_MAX 0x6 // Maximum interval, 7.5 ms
+/** @brief Connection interval in 1.25ms units (7.5ms for high throughput) */
+#define INTERVAL_MIN 0x6
+#define INTERVAL_MAX 0x6
 
-/* Packet headers for identification */
-#define EEG_PACKET_HEADER 0x55
-#define MIC_PACKET_HEADER 0xAA
+/*==============================================================================
+ * Private Variables - Packet Statistics
+ *============================================================================*/
 
-/* Packet counters for debugging - per sensor type */
+/** @brief EEG packets successfully sent (header 0x55) */
 static volatile uint32_t ble_eeg_packets_sent = 0;
+
+/** @brief MIC packets successfully sent (header 0xAA) */
 static volatile uint32_t ble_mic_packets_sent = 0;
+
+/** @brief Other/unknown packets successfully sent */
 static volatile uint32_t ble_other_packets_sent = 0;
+
+/** @brief Packets that failed to send */
 static volatile uint32_t ble_packets_failed = 0;
 
+/*==============================================================================
+ * Private Variables - Connection Management
+ *============================================================================*/
+
+/** @brief Semaphore for throughput measurement synchronization */
 static K_SEM_DEFINE(throughput_sem, 0, 1);
 
+/** @brief Work item for advertising restart */
 static struct k_work advertise_work;
 
+/** @brief UART data structure for legacy FIFO operations */
 struct uart_data_t {
   void *fifo_reserved;
   uint8_t data[CONFIG_BT_NUS_UART_BUFFER_SIZE];
   uint16_t len;
 };
 
+/** @brief Test data buffer for throughput measurement */
 static uint8_t test_data[TEST_DATA_LEN];
 
+/** @brief Legacy FIFO for UART TX data (unused) */
 static K_FIFO_DEFINE(fifo_uart_tx_data);
+
+/** @brief Legacy FIFO for UART RX data (unused) */
 static K_FIFO_DEFINE(fifo_uart_rx_data);
 
+/** @brief Current active BLE connection */
 static struct bt_conn *current_conn;
+
+/** @brief Connection used for authentication (if security enabled) */
 static struct bt_conn *auth_conn;
 
+/** @brief GATT MTU exchange parameters */
 static struct bt_gatt_exchange_params exchange_params;
+
+/** @brief Connection parameters for high throughput (7.5ms interval) */
 static struct bt_le_conn_param *conn_param = BT_LE_CONN_PARAM(INTERVAL_MIN, INTERVAL_MAX, 0, 400);
 
 struct bt_conn_le_phy_param *phy = BT_CONN_LE_PHY_PARAM_2M;
@@ -103,9 +153,7 @@ static void exchange_func(struct bt_conn *conn, uint8_t att_err, struct bt_gatt_
 static void update_data_length(struct bt_conn *conn);
 static void update_mtu(struct bt_conn *conn);
 static void le_data_length_updated(struct bt_conn *conn, struct bt_conn_le_data_len_info *info);
-void measure_throughput(void);
-void print_ble_conn_info(void);
-void init_test_data(void);
+static void init_test_data(void);
 
 static void bt_receive_cb(struct bt_conn *conn, const uint8_t *const data, uint16_t len) {
   memcpy(ble_data_available.data, data, len);
@@ -332,6 +380,10 @@ static void bt_ready(int err) {
   }
 }
 
+/*==============================================================================
+ * Public Functions - Initialization & Connection
+ *============================================================================*/
+
 void start_bluetooth_adverts(void) {
   int rc;
 
@@ -343,8 +395,14 @@ void start_bluetooth_adverts(void) {
   }
 }
 
+/*==============================================================================
+ * Public Functions - Legacy/Unused
+ *============================================================================*/
+
 void update_status(struct sensor_value *temp, struct sensor_value *press, struct sensor_value *humidity,
                    struct sensor_value *gas_res) {
+  /* NOTE: This function is a stub and does not transmit data.
+   * See sensorShield_bme688 example for a working implementation. */
   char temp_str[20];
   char press_str[20];
   char humidity_str[20];
@@ -355,6 +413,10 @@ void update_status(struct sensor_value *temp, struct sensor_value *press, struct
   snprintf(humidity_str, sizeof(humidity_str), "%d.%06d", humidity->val1, humidity->val2);
   snprintf(gas_res_str, sizeof(gas_res_str), "%d.%06d", gas_res->val1, gas_res->val2);
 }
+
+/*==============================================================================
+ * Private Functions - BLE Write Thread
+ *============================================================================*/
 
 void ble_write_thread(void) {
   LOG_INF("BLE write thread waiting for initialization");
@@ -369,8 +431,8 @@ void ble_write_thread(void) {
     k_sleep(K_MSEC(100));
   }
 
+  /* Dead code - keeping for reference */
   for (;;) {
-    // Wait indefinitely for data to be sent over bluetooth
     struct uart_data_t *buf = k_fifo_get(&fifo_uart_rx_data, K_FOREVER);
 
     if (bt_nus_send(NULL, buf->data, buf->len)) {
@@ -380,13 +442,17 @@ void ble_write_thread(void) {
   }
 }
 
+/*==============================================================================
+ * Public Functions - Diagnostics
+ *============================================================================*/
+
 void print_ble_conn_info(void) {
   int err;
   struct bt_conn_info info = {0};
 
   err = bt_conn_get_info(current_conn, &info);
   if (err) {
-    LOG_ERR("Failed to get connection info %d\n", err);
+    LOG_ERR("Failed to get connection info %d", err);
     return;
   }
 
@@ -394,7 +460,7 @@ void print_ble_conn_info(void) {
   LOG_INF("TX max time: %u us", info.le.data_len->tx_max_time);
   LOG_INF("RX max length: %u bytes", info.le.data_len->rx_max_len);
   LOG_INF("RX max time: %u us", info.le.data_len->rx_max_time);
-  LOG_INF("Conn. interval is %u units\n", info.le.interval);
+  LOG_INF("Conn. interval is %u units", info.le.interval);
   LOG_INF("Conn. latency is %u", info.le.latency);
   LOG_INF("Supervision timeout is %u units", info.le.timeout);
 }
@@ -406,37 +472,37 @@ void measure_throughput(void) {
 
   init_test_data();
 
-  // Get the starting time in milliseconds
   start_time = k_uptime_get_32();
 
   for (transmissions = 0; transmissions < NUM_TRANSMISSIONS; ++transmissions) {
-
-    // Send data over Bluetooth
     if (bt_nus_send(NULL, test_data, sizeof(test_data))) {
       LOG_WRN("Failed to send data over BLE connection");
     } else {
-      total_bytes_sent += sizeof(test_data); // Accumulate total bytes sent
+      total_bytes_sent += sizeof(test_data);
     }
-    // k_sleep(K_MSEC(10)); // Adjust delay as needed
   }
 
-  // Get the end time in milliseconds
   end_time = k_uptime_get_32();
 
-  // Calculate the time taken in seconds and throughput
   uint32_t time_taken_ms = end_time - start_time;
   float time_taken_s = time_taken_ms / 1000.0;
-  float throughput = 8 * total_bytes_sent / time_taken_s / 1000000; // Bytes per second
+  float throughput = 8 * total_bytes_sent / time_taken_s / 1000000;
 
   LOG_INF("Time taken for %d transmissions: %u ms", NUM_TRANSMISSIONS, time_taken_ms);
   LOG_INF("Total bytes sent: %u", total_bytes_sent);
   LOG_INF("Throughput: %.2f Mbit/s", throughput);
 }
 
-void init_test_data(void) {
+/*==============================================================================
+ * Private Functions - Test Helpers
+ *============================================================================*/
+
+/**
+ * @brief Initialize test data buffer with repeating pattern
+ */
+static void init_test_data(void) {
   size_t offset = 0;
 
-  // Fill test_data with the repeating pattern until TEST_DATA_LEN is reached
   while (offset < TEST_DATA_LEN) {
     size_t copy_len = (offset + PATTERN_LEN <= TEST_DATA_LEN) ? PATTERN_LEN : (TEST_DATA_LEN - offset);
     memcpy(&test_data[offset], PATTERN, copy_len);
@@ -444,23 +510,30 @@ void init_test_data(void) {
   }
 }
 
+/*==============================================================================
+ * Public Functions - Data Transmission
+ *============================================================================*/
+
 void send_data_ble(char *data_array, int16_t length) {
-  // k_msgq_put(&send_msgq, &data);
   if (bt_nus_send(NULL, data_array, length)) {
     LOG_WRN("Failed to send data over BLE connection");
     ble_packets_failed++;
   } else {
     /* Identify packet type by header byte */
     uint8_t header = (uint8_t)data_array[0];
-    if (header == EEG_PACKET_HEADER) {
+    if (header == BLE_EEG_PACKET_HEADER) {
       ble_eeg_packets_sent++;
-    } else if (header == MIC_PACKET_HEADER) {
+    } else if (header == BLE_MIC_PACKET_HEADER) {
       ble_mic_packets_sent++;
     } else {
       ble_other_packets_sent++;
     }
   }
 }
+
+/*==============================================================================
+ * Public Functions - Packet Statistics
+ *============================================================================*/
 
 void ble_reset_packet_counters(void) {
   ble_eeg_packets_sent = 0;
@@ -470,8 +543,17 @@ void ble_reset_packet_counters(void) {
 }
 
 void ble_print_packet_stats(void) {
-  LOG_INF("BLE packets: EEG=%u, MIC=%u, other=%u, failed=%u", 
+  LOG_INF("BLE packets: EEG=%u, MIC=%u, other=%u, failed=%u",
           ble_eeg_packets_sent, ble_mic_packets_sent, ble_other_packets_sent, ble_packets_failed);
+}
+
+void ble_get_packet_stats(ble_packet_stats_t *stats) {
+  if (stats != NULL) {
+    stats->eeg_sent = ble_eeg_packets_sent;
+    stats->mic_sent = ble_mic_packets_sent;
+    stats->other_sent = ble_other_packets_sent;
+    stats->failed = ble_packets_failed;
+  }
 }
 
 uint32_t ble_get_packets_sent(void) {
@@ -489,6 +571,18 @@ uint32_t ble_get_eeg_packets_sent(void) {
 uint32_t ble_get_mic_packets_sent(void) {
   return ble_mic_packets_sent;
 }
+
+/*==============================================================================
+ * Public Functions - Connection Status
+ *============================================================================*/
+
+bool ble_is_connected(void) {
+  return (current_conn != NULL);
+}
+
+/*==============================================================================
+ * Thread Definition
+ *============================================================================*/
 
 K_THREAD_DEFINE(ble_write_thread_id, CONFIG_BT_NUS_THREAD_STACK_SIZE, ble_write_thread, NULL, NULL, NULL,
                 PRIORITY_BLE_THREAD, 0, 0);

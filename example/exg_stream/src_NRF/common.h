@@ -3,7 +3,7 @@
  *
  * File: common.h
  *
- * Last edited: 5.07.2024
+ * Last edited: 05.12.2025
  *
  * Copyright (C) 2024, ETH Zurich and University of Bologna.
  *
@@ -26,42 +26,66 @@
  * limitations under the License.
  */
 
+/**
+ * @file common.h
+ * @brief Common Definitions and Includes for ExG Stream Application
+ *
+ * This header provides shared definitions used across the ExG streaming
+ * application including board states, version information, and commonly
+ * needed module includes.
+ */
+
 #ifndef COMMON_H
 #define COMMON_H
 
 #include <stdint.h>
-#include "state_machine.h"
- 
-/*Board States*/
-#define STATE_STREAMING_NORDIC          50
-#define STATE_GAP9_MASTER               60
-#define STATE_SWITCH                    70
-#define STATE_PROGRAM_WOLF              80
-#define STATE_ES_QUALITY                90
 
-#define FIRMWARE_VERSION  '2'
+#include "bluetooth.h"
+#include "state_machine.h"
+
+/*==============================================================================
+ * Board State Definitions
+ *============================================================================*/
+
+/** @brief Nordic streaming mode - data streamed via nRF BLE */
+#define STATE_STREAMING_NORDIC 50
+
+/** @brief GAP9 master mode - GAP9 controls data acquisition */
+#define STATE_GAP9_MASTER 60
+
+/** @brief State switch in progress */
+#define STATE_SWITCH 70
+
+/** @brief Biowolf programming mode */
+#define STATE_PROGRAM_WOLF 80
+
+/** @brief Electrode-skin quality measurement mode */
+#define STATE_ES_QUALITY 90
+
+/*==============================================================================
+ * Version Information
+ *============================================================================*/
+
+/** @brief Firmware major version */
+#define FIRMWARE_VERSION '2'
+
+/** @brief Firmware minor revision */
 #define FIRMWARE_REVISION 'c'
 
-#define HARDWARE_VERSION  '2'
+/** @brief Hardware major version */
+#define HARDWARE_VERSION '2'
+
+/** @brief Hardware minor revision */
 #define HARDWARE_REVISION 'b'
 
+/*==============================================================================
+ * Utility Definitions
+ *============================================================================*/
+
+/** @brief Spaces string for formatting (legacy) */
 #define SPACES "                                                               "
 
+/** @brief Success return code */
 #define NO_ERROR 0
 
-
-void start_bluetooth_adverts(void);
-void send_data_ble(char *data_array, int16_t length);
-
-/* BLE packet counter functions for debugging */
-void ble_reset_packet_counters(void);
-void ble_print_packet_stats(void);
-uint32_t ble_get_packets_sent(void);      /* Returns total (EEG + MIC + other) */
-uint32_t ble_get_packets_failed(void);
-uint32_t ble_get_eeg_packets_sent(void);
-uint32_t ble_get_mic_packets_sent(void);
-
-void update_status(struct sensor_value *temp, struct sensor_value *press, struct sensor_value *humidity,
-                   struct sensor_value *gas_res);
-
-#endif // COMMON_H
+#endif /* COMMON_H */
