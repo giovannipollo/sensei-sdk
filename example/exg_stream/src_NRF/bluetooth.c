@@ -60,6 +60,16 @@ LOG_MODULE_REGISTER(main_bluetooth, LOG_LEVEL_DBG);
 #define INTERVAL_MIN 0x6 // Minimum interval, 7.5 ms
 #define INTERVAL_MAX 0x6 // Maximum interval, 7.5 ms
 
+/* Packet headers for identification */
+#define EEG_PACKET_HEADER 0x55
+#define MIC_PACKET_HEADER 0xAA
+
+/* Packet counters for debugging - per sensor type */
+static volatile uint32_t ble_eeg_packets_sent = 0;
+static volatile uint32_t ble_mic_packets_sent = 0;
+static volatile uint32_t ble_other_packets_sent = 0;
+static volatile uint32_t ble_packets_failed = 0;
+
 static K_SEM_DEFINE(throughput_sem, 0, 1);
 
 static struct k_work advertise_work;
@@ -435,12 +445,49 @@ void init_test_data(void) {
 }
 
 void send_data_ble(char *data_array, int16_t length) {
-  LOG_INF("Sending %d bytes over BLE", length);
-
   // k_msgq_put(&send_msgq, &data);
   if (bt_nus_send(NULL, data_array, length)) {
     LOG_WRN("Failed to send data over BLE connection");
+    ble_packets_failed++;
+  } else {
+    /* Identify packet type by header byte */
+    uint8_t header = (uint8_t)data_array[0];
+    if (header == EEG_PACKET_HEADER) {
+      ble_eeg_packets_sent++;
+    } else if (header == MIC_PACKET_HEADER) {
+      ble_mic_packets_sent++;
+    } else {
+      ble_other_packets_sent++;
+    }
   }
+}
+
+void ble_reset_packet_counters(void) {
+  ble_eeg_packets_sent = 0;
+  ble_mic_packets_sent = 0;
+  ble_other_packets_sent = 0;
+  ble_packets_failed = 0;
+}
+
+void ble_print_packet_stats(void) {
+  LOG_INF("BLE packets: EEG=%u, MIC=%u, other=%u, failed=%u", 
+          ble_eeg_packets_sent, ble_mic_packets_sent, ble_other_packets_sent, ble_packets_failed);
+}
+
+uint32_t ble_get_packets_sent(void) {
+  return ble_eeg_packets_sent + ble_mic_packets_sent + ble_other_packets_sent;
+}
+
+uint32_t ble_get_packets_failed(void) {
+  return ble_packets_failed;
+}
+
+uint32_t ble_get_eeg_packets_sent(void) {
+  return ble_eeg_packets_sent;
+}
+
+uint32_t ble_get_mic_packets_sent(void) {
+  return ble_mic_packets_sent;
 }
 
 K_THREAD_DEFINE(ble_write_thread_id, CONFIG_BT_NUS_THREAD_STACK_SIZE, ble_write_thread, NULL, NULL, NULL,

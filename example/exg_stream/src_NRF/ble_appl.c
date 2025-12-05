@@ -226,6 +226,7 @@ static void handle_ble_command(uint8_t cmd) {
 
   case START_STREAMING_NORDIC:
     LOG_DBG("Ping START_STREAMING_NORDIC");
+    ble_reset_packet_counters(); /* Reset packet counters for new session */
     set_SM_state(S_NORDIC_STREAM);
     WaitingForConfig = 1;
     Set_ADS_Function(START);
@@ -235,6 +236,7 @@ static void handle_ble_command(uint8_t cmd) {
     LOG_DBG("Ping STOP_STREAMING_NORDIC");
     set_SM_state(S_LOW_POWER_CONNECTED);
     Set_ADS_Function(STOP);
+    ble_print_packet_stats(); /* Print BLE packet stats */
     ResetConfigState(); /* Reset config state for next session */
     break;
 
@@ -251,6 +253,7 @@ static void handle_ble_command(uint8_t cmd) {
     break;
   case START_COMBINED_STREAMING:
     LOG_DBG("Ping START_COMBINED_STREAMING");
+    ble_reset_packet_counters(); /* Reset packet counters for new session */
     set_SM_state(S_NORDIC_STREAM);
     sync_begin(2); /* Setup sync barrier for 2 subsystems (EXG + MIC) */
     mic_start_streaming();
@@ -262,6 +265,7 @@ static void handle_ble_command(uint8_t cmd) {
     set_SM_state(S_LOW_POWER_CONNECTED);
     mic_stop_streaming();
     Set_ADS_Function(STOP);
+    ble_print_packet_stats(); /* Print BLE packet stats */
     sync_reset();       /* Clean up sync state */
     ResetConfigState(); /* Reset config state for next session */
     break;

@@ -53,6 +53,14 @@
 void start_bluetooth_adverts(void);
 void send_data_ble(char *data_array, int16_t length);
 
+/* BLE packet counter functions for debugging */
+void ble_reset_packet_counters(void);
+void ble_print_packet_stats(void);
+uint32_t ble_get_packets_sent(void);      /* Returns total (EEG + MIC + other) */
+uint32_t ble_get_packets_failed(void);
+uint32_t ble_get_eeg_packets_sent(void);
+uint32_t ble_get_mic_packets_sent(void);
+
 void update_status(struct sensor_value *temp, struct sensor_value *press, struct sensor_value *humidity,
                    struct sensor_value *gas_res);
 
