@@ -32,16 +32,19 @@
 
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
+#include <zephyr/kernel.h>
 
 #include <zephyr/logging/log.h>
 #include <zephyr/logging/log_ctrl.h>
 
+#include "ads_defs.h"
+#include "bluetooth.h"
 #include "common.h"
 
 LOG_MODULE_DECLARE(sensors, LOG_LEVEL_INF);
 
 /* Define stack sizes and priorities */
-#define IMU_STACK_SIZE 1024
+#define IMU_STACK_SIZE 2048
 #define IMU_PRIORITY 6
 
 #define LIS2DUXS12_INT_NODE DT_NODELABEL(gpio_lis2duxs12_int1)
@@ -49,6 +52,25 @@ static const struct gpio_dt_spec lis2duxs12_int_gpio = GPIO_DT_SPEC_GET(LIS2DUXS
 
 static struct gpio_callback lis2duxs12_cb_data;
 K_SEM_DEFINE(imu_int1, 0, 1);
+
+/*==============================================================================
+ * IMU Packet Building Variables
+ *============================================================================*/
+
+/** @brief IMU BLE packet buffer */
+static uint8_t imu_tx_buf[IMU_PCK_LNGTH];
+
+/** @brief Current index in IMU packet buffer */
+static uint8_t imu_buf_inx = 0;
+
+/** @brief IMU packet counter (wraps at 256) */
+static uint8_t imu_pkt_counter = 0;
+
+/** @brief Timestamp of first sample in current packet */
+static uint32_t imu_packet_timestamp = 0;
+
+/** @brief Number of samples accumulated in current packet */
+static uint8_t imu_sample_count = 0;
 
 lis2duxs12_xl_data_t data_xl;
 lis2duxs12_outt_data_t data_temp;
@@ -74,6 +96,66 @@ void imu_receive_thread_temp_tap() {
     }
   }
 }
+
+/**
+ * @brief Initialize IMU packet buffer for new packet
+ *
+ * Resets buffer index and prepares header bytes. The timestamp
+ * will be captured when the first sample is added.
+ */
+static void imu_packet_init(void) {
+  imu_buf_inx = 0;
+  imu_tx_buf[imu_buf_inx++] = BLE_IMU_HEADER;
+  imu_tx_buf[imu_buf_inx++] = imu_pkt_counter++;
+  // Reserve 4 bytes for timestamp (filled when first sample arrives)
+  imu_buf_inx += 4;
+  imu_sample_count = 0;
+}
+
+/**
+ * @brief Add a sample to the IMU packet buffer and send if full
+ *
+ * Adds accelerometer X, Y, Z data to the packet. When the packet
+ * contains IMU_SAMPLES_PER_PACKET samples, it is sent via BLE.
+ *
+ * @param xl Pointer to accelerometer data structure
+ */
+static void imu_packet_add_sample(lis2duxs12_xl_data_t *xl) {
+  // Capture timestamp on first sample
+  if (imu_sample_count == 0) {
+    imu_packet_timestamp = k_cyc_to_us_floor32(k_cycle_get_32());
+    // Fill in timestamp bytes (little-endian)
+    imu_tx_buf[2] = (uint8_t)(imu_packet_timestamp & 0xFF);
+    imu_tx_buf[3] = (uint8_t)((imu_packet_timestamp >> 8) & 0xFF);
+    imu_tx_buf[4] = (uint8_t)((imu_packet_timestamp >> 16) & 0xFF);
+    imu_tx_buf[5] = (uint8_t)((imu_packet_timestamp >> 24) & 0xFF);
+  }
+
+  // Add X, Y, Z accelerometer data (big-endian, matching original EEG format)
+  imu_tx_buf[imu_buf_inx++] = (uint8_t)(xl->raw[0] >> 8);         // X high byte
+  imu_tx_buf[imu_buf_inx++] = (uint8_t)(xl->raw[0] & 0xFF);       // X low byte
+  imu_tx_buf[imu_buf_inx++] = (uint8_t)(xl->raw[1] >> 8);         // Y high byte
+  imu_tx_buf[imu_buf_inx++] = (uint8_t)(xl->raw[1] & 0xFF);       // Y low byte
+  imu_tx_buf[imu_buf_inx++] = (uint8_t)(xl->raw[2] >> 8);         // Z high byte
+  imu_tx_buf[imu_buf_inx++] = (uint8_t)(xl->raw[2] & 0xFF);       // Z low byte
+
+  imu_sample_count++;
+
+  // Check if packet is full
+  if (imu_sample_count >= IMU_SAMPLES_PER_PACKET) {
+    // Add trailer
+    imu_tx_buf[imu_buf_inx++] = BLE_IMU_TAILER;
+
+    // Send packet via BLE
+    if (ble_is_connected()) {
+      send_data_ble((char *)imu_tx_buf, IMU_PCK_LNGTH);
+    }
+
+    // Reset for next packet
+    imu_packet_init();
+  }
+}
+
 void imu_receive_thread() {
   LOG_INF("IMU receive thread started");
   k_msleep(2000);
@@ -82,6 +164,10 @@ void imu_receive_thread() {
   LOG_INF("Enabling accelerometer sampling...");
   enable_acc_sampling();
   LOG_INF("LIS2DUXS12 setup complete, entering main loop...");
+
+  // Initialize the IMU packet buffer
+  imu_packet_init();
+
   while (1) {
     k_sem_take(&imu_int1, K_FOREVER);
 
@@ -93,15 +179,13 @@ void imu_receive_thread() {
       LOG_DBG(" - Acceleration X                      : % 7.2f mg" SPACES, data_xl.mg[0]);
       LOG_DBG(" - Acceleration Y                      : % 7.2f mg" SPACES, data_xl.mg[1]);
       LOG_DBG(" - Acceleration Z                      : % 7.2f mg" SPACES, data_xl.mg[2]);
+
+      // Add sample to IMU packet (sends automatically when full)
+      imu_packet_add_sample(&data_xl);
     }
 
-    error = lis2duxs12_outt_data_get(&lis2duxs12_ctx, &md, &data_temp);
-    if (error != NO_ERROR) {
-      LOG_ERR(" * Error %d getting temperature", error);
-    } else {
-      LOG_DBG(" - Temperature                         : %3.2f °C" SPACES, data_temp.heat.deg_c);
-    }
-
+    // Temperature reading is no longer needed every sample
+    // Only read periodically if required
     LOG_DBG("LIS2DUXS12 interrupt triggered");
   }
 }

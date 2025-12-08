@@ -97,6 +97,9 @@ static volatile uint32_t ble_eeg_packets_sent = 0;
 /** @brief MIC packets successfully sent (header 0xAA) */
 static volatile uint32_t ble_mic_packets_sent = 0;
 
+/** @brief IMU packets successfully sent (header 0x56) */
+static volatile uint32_t ble_imu_packets_sent = 0;
+
 /** @brief Other/unknown packets successfully sent */
 static volatile uint32_t ble_other_packets_sent = 0;
 
@@ -523,6 +526,8 @@ void send_data_ble(char *data_array, int16_t length) {
     uint8_t header = (uint8_t)data_array[0];
     if (header == BLE_EEG_PACKET_HEADER) {
       ble_eeg_packets_sent++;
+    } else if (header == BLE_IMU_PACKET_HEADER) {
+      ble_imu_packets_sent++;
     } else if (header == BLE_MIC_PACKET_HEADER) {
       ble_mic_packets_sent++;
     } else {
@@ -538,26 +543,29 @@ void send_data_ble(char *data_array, int16_t length) {
 void ble_reset_packet_counters(void) {
   ble_eeg_packets_sent = 0;
   ble_mic_packets_sent = 0;
+  ble_imu_packets_sent = 0;
   ble_other_packets_sent = 0;
   ble_packets_failed = 0;
 }
 
 void ble_print_packet_stats(void) {
-  LOG_INF("BLE packets: EEG=%u, MIC=%u, other=%u, failed=%u",
-          ble_eeg_packets_sent, ble_mic_packets_sent, ble_other_packets_sent, ble_packets_failed);
+  LOG_INF("BLE packets: EEG=%u, IMU=%u, MIC=%u, other=%u, failed=%u",
+          ble_eeg_packets_sent, ble_imu_packets_sent, ble_mic_packets_sent,
+          ble_other_packets_sent, ble_packets_failed);
 }
 
 void ble_get_packet_stats(ble_packet_stats_t *stats) {
   if (stats != NULL) {
     stats->eeg_sent = ble_eeg_packets_sent;
     stats->mic_sent = ble_mic_packets_sent;
+    stats->imu_sent = ble_imu_packets_sent;
     stats->other_sent = ble_other_packets_sent;
     stats->failed = ble_packets_failed;
   }
 }
 
 uint32_t ble_get_packets_sent(void) {
-  return ble_eeg_packets_sent + ble_mic_packets_sent + ble_other_packets_sent;
+  return ble_eeg_packets_sent + ble_imu_packets_sent + ble_mic_packets_sent + ble_other_packets_sent;
 }
 
 uint32_t ble_get_packets_failed(void) {
@@ -570,6 +578,10 @@ uint32_t ble_get_eeg_packets_sent(void) {
 
 uint32_t ble_get_mic_packets_sent(void) {
   return ble_mic_packets_sent;
+}
+
+uint32_t ble_get_imu_packets_sent(void) {
+  return ble_imu_packets_sent;
 }
 
 /*==============================================================================

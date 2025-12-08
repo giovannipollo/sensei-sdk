@@ -61,20 +61,84 @@
 #define BLE_PCK_TAILER 0xAA
 
 /**
- * @brief Total BLE packet length in bytes
+ * @brief Total EEG BLE packet length in bytes
  *
- * Packet structure (234 bytes total):
+ * Packet structure (210 bytes total):
  * - 1 byte: Header (0x55)
  * - 1 byte: Packet counter
- * - 224 bytes: 7 samples × 32 bytes per sample
+ * - 4 bytes: Timestamp (microseconds, for cross-packet synchronization)
+ * - 200 bytes: 4 samples × 50 bytes per sample
  *   - 24 bytes: ADS1298_A data (8 channels × 3 bytes)
  *   - 24 bytes: ADS1298_B data (8 channels × 3 bytes)
- *   - 6 bytes: IMU data (3 axes × 2 bytes)
- *   - 2 bytes: Counter_extra and trigger
- * - 6 bytes: Metadata (temperature, battery, etc.)
+ *   - 1 byte: Counter_extra
+ *   - 1 byte: Trigger
+ * - 3 bytes: Metadata (reserved for future use)
  * - 1 byte: Trailer (0xAA)
+ *
+ * @note IMU data has been moved to independent IMU packets (header 0x56)
+ *       to allow native 400 Hz sampling rate.
+ * @note Previous packet size was 234 bytes with 4 samples × 56 bytes
+ *       (including 6 bytes IMU per sample).
  */
-#define PCK_LNGTH 234
+#define EEG_PCK_LNGTH 210
+
+/** @brief Legacy alias for backward compatibility */
+#define PCK_LNGTH EEG_PCK_LNGTH
+
+/** @brief Number of EEG samples per BLE packet */
+#define EEG_SAMPLES_PER_PACKET 4
+
+/** @brief Bytes per EEG sample (ADS_A + ADS_B + counter_extra + trigger) */
+#define EEG_BYTES_PER_SAMPLE 50
+
+/** @brief Index where sample data ends (before metadata)
+ *  Calculation: Header(1) + Counter(1) + Timestamp(4) + 4×50 = 206
+ */
+#define EEG_SAMPLE_DATA_END 206
+
+/*==============================================================================
+ * IMU Packet Format Constants
+ *============================================================================*/
+
+/**
+ * @brief IMU packet header byte
+ * Marks the start of each IMU BLE packet
+ */
+#define BLE_IMU_HEADER 0x56
+
+/**
+ * @brief IMU packet trailer byte
+ * Marks the end of each IMU BLE packet
+ */
+#define BLE_IMU_TAILER 0x57
+
+/**
+ * @brief Number of IMU samples per BLE packet
+ * At 400 Hz ODR, 20 samples = 50ms of data
+ * This gives ~20 packets/second
+ */
+#define IMU_SAMPLES_PER_PACKET 20
+
+/**
+ * @brief Bytes per IMU sample (X, Y, Z accelerometer)
+ * Each axis is 2 bytes (int16_t)
+ */
+#define IMU_BYTES_PER_SAMPLE 6
+
+/**
+ * @brief Total IMU BLE packet length in bytes
+ *
+ * Packet structure (127 bytes total):
+ * - 1 byte: Header (0x56)
+ * - 1 byte: Packet counter
+ * - 4 bytes: Timestamp (microseconds, for cross-packet synchronization)
+ * - 120 bytes: 20 samples × 6 bytes per sample
+ *   - 2 bytes: Acceleration X (int16_t, big-endian)
+ *   - 2 bytes: Acceleration Y (int16_t, big-endian)
+ *   - 2 bytes: Acceleration Z (int16_t, big-endian)
+ * - 1 byte: Trailer (0x57)
+ */
+#define IMU_PCK_LNGTH 127
 
 /*==============================================================================
  * SPIM Instance Configuration

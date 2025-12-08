@@ -36,9 +36,10 @@
  * @section data_flow Data Flow
  * 1. DRDY interrupt triggers when ADS1298 has new data
  * 2. process_ads_data() reads from both ADS1298 devices
- * 3. Data is combined with PPG (if active) and IMU readings
- * 4. Seven samples are accumulated into a 234-byte BLE packet
+ * 3. Data is combined with PPG (if active) - IMU is now independent
+ * 4. Four samples are accumulated into a 210-byte BLE packet
  * 5. Packet is sent via BLE to connected device
+ * 6. IMU data is sent separately by lis2duxs12_sensor.c at 400 Hz
  *
  * @section timing Timing Considerations
  * - At 1 kSPS sampling rate, DRDY occurs every 1 ms
@@ -348,15 +349,7 @@ static void spim_handler(nrfx_spim_evt_t const *p_event, void *p_context) {
       }
 
       if (ads_to_read == ADS1298_B) {
-        // Attach IMU data
-        ble_tx_buf[tx_buf_inx++] = (uint8_t)(data_xl.raw[0] >> 8);         // IMU-xH
-        ble_tx_buf[tx_buf_inx++] = (uint8_t)((data_xl.raw[0]) & (0x00FF)); // IMU-xL
-
-        ble_tx_buf[tx_buf_inx++] = (uint8_t)(data_xl.raw[1] >> 8);         // IMU-yH
-        ble_tx_buf[tx_buf_inx++] = (uint8_t)((data_xl.raw[1]) & (0x00FF)); // IMU-yL
-
-        ble_tx_buf[tx_buf_inx++] = (uint8_t)(data_xl.raw[2] >> 8);         // IMU-zH
-        ble_tx_buf[tx_buf_inx++] = (uint8_t)((data_xl.raw[2]) & (0x00FF)); // IMU-zL
+        /* IMU data is now sent independently via lis2duxs12_sensor.c */
 
         // Attach other data
         //  Set packet identifier to EEG all channels + PPG inactive
@@ -364,7 +357,7 @@ static void spim_handler(nrfx_spim_evt_t const *p_event, void *p_context) {
         ble_tx_buf[tx_buf_inx++] = get_trigger(); // this will capture the tigger per sample send throught UART BLE
       }
 
-      if (tx_buf_inx == 226) {
+      if (tx_buf_inx == EEG_SAMPLE_DATA_END) {
         // Check if the last pck was handled and reset flag
 
         if (pck_ble_ready == true) {
@@ -377,31 +370,30 @@ static void spim_handler(nrfx_spim_evt_t const *p_event, void *p_context) {
           // Reset and condition BLE buffers
           tx_buf_inx = 0;
 
-          // Prepare the next buffer
+          // Prepare the next buffer with header, counter, and timestamp
           ble_tx_buf[tx_buf_inx++] = BLE_PCK_HEADER;
           ble_tx_buf[tx_buf_inx++] = ++counter;
 
+          // Add timestamp (microseconds) for cross-packet synchronization
+          uint32_t timestamp_us = k_cyc_to_us_floor32(k_cycle_get_32());
+          ble_tx_buf[tx_buf_inx++] = (uint8_t)(timestamp_us & 0xFF);
+          ble_tx_buf[tx_buf_inx++] = (uint8_t)((timestamp_us >> 8) & 0xFF);
+          ble_tx_buf[tx_buf_inx++] = (uint8_t)((timestamp_us >> 16) & 0xFF);
+          ble_tx_buf[tx_buf_inx++] = (uint8_t)((timestamp_us >> 24) & 0xFF);
+
           // Finish up and send
-          // Get the index to write
+          // Get the index to write metadata
+          int buf_current_size = EEG_SAMPLE_DATA_END;
 
-          int buf_current_size = 226;
-
-          // Here you can add information that you would send every now and then (every 7 samples)
-          ble_tx_buf[buf_current_size++] = (uint8_t)data_temp.heat.deg_c; // Temperature
+          // Metadata bytes (3 bytes reserved for future use)
           ble_tx_buf[buf_current_size++] = 0x00;
-
-          // Send Battery state
-          ble_tx_buf[buf_current_size++] = 0; // max20303_pmic_check_usb();
-          ble_tx_buf[buf_current_size++] = 0;
-          ble_tx_buf[buf_current_size++] = 0;
-
-          ble_tx_buf[buf_current_size++] = (uint8_t)bsp_get_battery_soc();
-          ble_tx_buf[buf_current_size++] = (uint8_t)bsp_get_battery_voltage();
+          ble_tx_buf[buf_current_size++] = 0x00;
+          ble_tx_buf[buf_current_size++] = 0x00;
 
           // BLE PCK tail
           ble_tx_buf[buf_current_size++] = BLE_PCK_TAILER;
 
-          add_data_to_send_buffer(ble_tx_buf, PCK_LNGTH);
+          add_data_to_send_buffer(ble_tx_buf, EEG_PCK_LNGTH);
         }
       }
 
@@ -788,6 +780,8 @@ void ADS_Init(uint8_t *InitParams, enum ADS_id_t ads_id) {
   tx_buf_inx = 0;
   ble_tx_buf[tx_buf_inx++] = BLE_PCK_HEADER;
   ble_tx_buf[tx_buf_inx++] = ++counter;
+  // Reserve 4 bytes for timestamp (will be filled when packet is complete)
+  tx_buf_inx += 4;
 
   /*Work Arround for the issue of the SPI blocking execution sometimes. This forses CS to reset the bus*/
   // pr_word[0]=_RESET;

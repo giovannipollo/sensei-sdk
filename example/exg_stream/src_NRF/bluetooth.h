@@ -57,7 +57,8 @@
  *
  * @section ble_packet_format Packet Format Detection
  * The module automatically detects packet types based on header bytes:
- * - 0x55: EEG/ExG data packets (234 bytes)
+ * - 0x55: EEG/ExG data packets (192 bytes, without IMU)
+ * - 0x56: IMU accelerometer packets (127 bytes, independent 400 Hz stream)
  * - 0xAA: Microphone audio packets (131 bytes)
  *
  * @section ble_debugging Debugging Packet Loss
@@ -95,6 +96,15 @@
  */
 #define BLE_MIC_PACKET_HEADER 0xAA
 
+/**
+ * @brief IMU packet header byte
+ *
+ * Matches BLE_IMU_HEADER defined in ads_defs.h.
+ * Used to identify IMU packets for statistics tracking.
+ * IMU packets are sent independently at native 400 Hz rate.
+ */
+#define BLE_IMU_PACKET_HEADER 0x56
+
 /*==============================================================================
  * Type Definitions
  *============================================================================*/
@@ -110,6 +120,7 @@
 typedef struct {
   uint32_t eeg_sent;   /**< Number of EEG packets successfully sent (header 0x55) */
   uint32_t mic_sent;   /**< Number of MIC packets successfully sent (header 0xAA) */
+  uint32_t imu_sent;   /**< Number of IMU packets successfully sent (header 0x56) */
   uint32_t other_sent; /**< Number of other/unknown packets successfully sent */
   uint32_t failed;     /**< Number of packets that failed to send */
 } ble_packet_stats_t;
@@ -160,6 +171,7 @@ bool ble_is_connected(void);
  *
  * Packet type detection (based on first byte):
  * - 0x55 (BLE_EEG_PACKET_HEADER): EEG packet -> increments eeg_sent
+ * - 0x56 (BLE_IMU_PACKET_HEADER): IMU packet -> increments imu_sent
  * - 0xAA (BLE_MIC_PACKET_HEADER): MIC packet -> increments mic_sent
  * - Other values: Unknown packet -> increments other_sent
  *
@@ -184,7 +196,7 @@ void send_data_ble(char *data_array, int16_t length);
 /**
  * @brief Reset all packet counters to zero
  *
- * Clears EEG, MIC, other, and failed packet counters. Should be called
+ * Clears EEG, MIC, IMU, other, and failed packet counters. Should be called
  * at the start of each streaming session for accurate per-session statistics.
  *
  * @note This is automatically called by the streaming command handlers
@@ -199,7 +211,7 @@ void ble_reset_packet_counters(void);
  *
  * Output format:
  * @code
- * [INF] main_bluetooth: BLE packets: EEG=1234, MIC=5678, other=0, failed=2
+ * [INF] main_bluetooth: BLE packets: EEG=1234, IMU=5000, MIC=5678, other=0, failed=2
  * @endcode
  *
  * @note This is automatically called by the streaming stop command handlers
@@ -223,7 +235,7 @@ void ble_print_packet_stats(void);
  * @code
  * ble_packet_stats_t stats;
  * ble_get_packet_stats(&stats);
- * LOG_INF("Total sent: %u", stats.eeg_sent + stats.mic_sent);
+ * LOG_INF("Total sent: %u", stats.eeg_sent + stats.imu_sent + stats.mic_sent);
  * LOG_INF("Loss rate: %.2f%%", 100.0 * stats.failed / (stats.eeg_sent + stats.failed));
  * @endcode
  */
@@ -232,7 +244,7 @@ void ble_get_packet_stats(ble_packet_stats_t *stats);
 /**
  * @brief Get total number of packets successfully sent
  *
- * @return Sum of EEG, MIC, and other packets sent
+ * @return Sum of EEG, IMU, MIC, and other packets sent
  */
 uint32_t ble_get_packets_sent(void);
 
@@ -269,6 +281,17 @@ uint32_t ble_get_eeg_packets_sent(void);
  * @note At 16 kHz with 64 samples per packet, expect 250 packets/second.
  */
 uint32_t ble_get_mic_packets_sent(void);
+
+/**
+ * @brief Get number of IMU packets sent
+ *
+ * IMU packets are identified by header byte 0x56 (BLE_IMU_PACKET_HEADER).
+ *
+ * @return Number of IMU packets successfully transmitted
+ *
+ * @note At 400 Hz with 20 samples per packet, expect 20 packets/second.
+ */
+uint32_t ble_get_imu_packets_sent(void);
 
 /*==============================================================================
  * Function Declarations - Diagnostics
