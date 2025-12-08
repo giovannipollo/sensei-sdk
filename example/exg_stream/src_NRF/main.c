@@ -49,6 +49,7 @@
 #include "ads_spi.h"
 #include "ble_appl.h"
 #include "common.h"
+#include "imu_appl.h"
 #include "mic_appl.h"
 #include "state_machine.h"
 
@@ -135,6 +136,14 @@ int main(void) {
     LOG_WRN("Microphone initialization failed - mic streaming disabled");
   } else {
     LOG_INF("Microphone initialized");
+  }
+
+  // Initialize IMU (LIS2DUXS12 accelerometer)
+  LOG_INF("Initializing IMU...");
+  if (imu_init() != 0) {
+    LOG_WRN("IMU initialization failed - IMU streaming disabled");
+  } else {
+    LOG_INF("IMU initialized");
   }
 
   // Initialize and start state machine

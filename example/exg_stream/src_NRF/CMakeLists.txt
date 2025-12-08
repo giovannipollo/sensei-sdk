@@ -35,6 +35,7 @@ target_sources(app PRIVATE
     board_streaming.c
     ppg_appl.c
     i2c_helpers.c
+    imu_appl.c
     lis2duxs12_sensor.c
     lis2duxs12_reg.c
     state_machine.c

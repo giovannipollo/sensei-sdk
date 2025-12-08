@@ -9,7 +9,7 @@ Modes:
     all  - Stream EEG, MIC, and IMU (default)
     eeg  - Stream EEG only
     mic  - Stream MIC only
-    imu  - Stream IMU only (requires EEG to be started)
+    imu  - Stream IMU only (now independent, uses commands 33/34)
 """
 
 import argparse
@@ -41,6 +41,32 @@ IMU_PACKET_SIZE = 127
 IMU_HEADER = 0x56
 IMU_TRAILER = 0x57
 IMU_SAMPLES_PER_PACKET = 20
+
+
+def extract_imu_info(packet: bytes) -> tuple[int, int, list[tuple[int, int, int]]]:
+    """Extract counter, timestamp, and samples from IMU packet.
+    
+    IMU packet format:
+    - Byte 0: Header (0x56)
+    - Byte 1: Counter (uint8)
+    - Bytes 2-5: Timestamp (uint32, little-endian, microseconds)
+    - Bytes 6-125: 20 samples × 6 bytes (X, Y, Z as big-endian int16)
+    - Byte 126: Trailer (0x57)
+    
+    Returns: (counter, timestamp_us, [(x, y, z), ...])
+    """
+    counter = packet[1]
+    timestamp = struct.unpack('<I', packet[2:6])[0]
+    
+    samples = []
+    for i in range(IMU_SAMPLES_PER_PACKET):
+        offset = 6 + i * 6  # Start after header(1) + counter(1) + timestamp(4)
+        x = struct.unpack('>h', packet[offset:offset+2])[0]
+        y = struct.unpack('>h', packet[offset+2:offset+4])[0]
+        z = struct.unpack('>h', packet[offset+4:offset+6])[0]
+        samples.append((x, y, z))
+    
+    return counter, timestamp, samples
 
 
 def create_eeg_command():
@@ -274,14 +300,16 @@ def main():
 
     # Start streaming based on mode
     print(f"Starting streams (mode: {args.mode})...")
-    if args.mode in ("all", "eeg", "imu"):
-        # Note: IMU requires EEG to be started (IMU streaming is tied to EEG/ADS system)
-        ser.write(bytes([18]))  # Start ADS
+    if args.mode in ("all", "eeg"):
+        ser.write(bytes([18]))  # Start EEG (ADS)
         time.sleep(0.2)
         ser.write(create_eeg_command())
         time.sleep(0.2)
     if args.mode in ("all", "mic"):
         ser.write(bytes([26]))  # Start MIC
+        time.sleep(0.2)
+    if args.mode in ("all", "imu"):
+        ser.write(bytes([33]))  # Start IMU (new independent command)
         time.sleep(0.2)
 
     print(f"Collecting for {args.duration}s...\n")
@@ -296,6 +324,8 @@ def main():
     imu_packets = 0
     skipped_bytes = 0
     packet_sequence = []  # Track sequence of packet types
+    imu_timestamps = []  # Track IMU timestamps for analysis
+    imu_first_samples = []  # Track first sample of each IMU packet
 
     start_time = time.time()
 
@@ -329,6 +359,12 @@ def main():
                     mic_packets += 1
                     packet_sequence.append("M")
                 elif packet_type == "IMU":
+                    # Extract IMU packet info before removing from buffer
+                    packet_data = bytes(buffer[:IMU_PACKET_SIZE])
+                    counter, timestamp, samples = extract_imu_info(packet_data)
+                    imu_timestamps.append((counter, timestamp))
+                    imu_first_samples.append(samples[0])  # Store first sample for debug
+                    
                     imu_samples += IMU_SAMPLES_PER_PACKET
                     imu_packets += 1
                     packet_sequence.append("I")
@@ -336,9 +372,15 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
-        ser.write(bytes([19]))  # Stop EEG
-        time.sleep(0.2)
-        ser.write(bytes([27]))  # Stop MIC
+        if args.mode in ("all", "eeg"):
+            ser.write(bytes([19]))  # Stop EEG
+            time.sleep(0.1)
+        if args.mode in ("all", "mic"):
+            ser.write(bytes([27]))  # Stop MIC
+            time.sleep(0.1)
+        if args.mode in ("all", "imu"):
+            ser.write(bytes([34]))  # Stop IMU (new independent command)
+            time.sleep(0.1)
         ser.close()
 
     elapsed = time.time() - start_time
@@ -353,6 +395,47 @@ def main():
     print(f"IMU packets: {imu_packets} ({imu_packets/elapsed:.1f}/s, expected: 20/s)")
     print(f"Skipped bytes: {skipped_bytes}")
     print("=" * 40)
+    
+    # IMU timestamp analysis
+    if imu_timestamps:
+        print(f"\n--- IMU Timestamp Analysis ---")
+        print(f"First 10 IMU packets (counter, timestamp_us):")
+        for i, (counter, ts) in enumerate(imu_timestamps[:10]):
+            sample = imu_first_samples[i] if i < len(imu_first_samples) else (0, 0, 0)
+            print(f"  #{counter:3d}: {ts:12d} us  accel=({sample[0]:6d}, {sample[1]:6d}, {sample[2]:6d})")
+        
+        # Calculate timestamp deltas
+        if len(imu_timestamps) > 1:
+            deltas = []
+            for i in range(1, len(imu_timestamps)):
+                delta = imu_timestamps[i][1] - imu_timestamps[i-1][1]
+                # Handle wraparound (32-bit microsecond counter wraps at ~71 minutes)
+                if delta < 0:
+                    delta += 2**32
+                deltas.append(delta)
+            
+            avg_delta = sum(deltas) / len(deltas)
+            min_delta = min(deltas)
+            max_delta = max(deltas)
+            
+            # Expected: 20 samples at 400Hz = 50ms = 50000us between packets
+            expected_delta = 50000
+            
+            print(f"\nTimestamp deltas (us between packets):")
+            print(f"  Expected: {expected_delta} us (20 samples @ 400Hz)")
+            print(f"  Average:  {avg_delta:.0f} us")
+            print(f"  Min:      {min_delta} us")
+            print(f"  Max:      {max_delta} us")
+            print(f"  First 10 deltas: {deltas[:10]}")
+            
+            # Check for missed packets using counter
+            missed = 0
+            for i in range(1, len(imu_timestamps)):
+                expected_counter = (imu_timestamps[i-1][0] + 1) % 256
+                if imu_timestamps[i][0] != expected_counter:
+                    diff = (imu_timestamps[i][0] - imu_timestamps[i-1][0]) % 256
+                    missed += diff - 1
+            print(f"\nMissed IMU packets (by counter): {missed}")
     
     if args.analyze and raw_data:
         analyze_stream(bytes(raw_data))

@@ -98,47 +98,25 @@
 
 /*==============================================================================
  * IMU Packet Format Constants
+ * 
+ * NOTE: IMU packet constants have been moved to imu_appl.h as part of the
+ * IMU refactoring. The IMU application layer now owns these definitions:
+ *   - IMU_DATA_HEADER (0x56)
+ *   - IMU_DATA_TRAILER (0x57)
+ *   - IMU_SAMPLES_PER_PACKET (20)
+ *   - IMU_BYTES_PER_SAMPLE (6)
+ *   - IMU_PCKT_SIZE (127)
+ *
+ * For backward compatibility, legacy aliases are provided below.
+ * New code should include imu_appl.h directly.
  *============================================================================*/
 
-/**
- * @brief IMU packet header byte
- * Marks the start of each IMU BLE packet
- */
-#define BLE_IMU_HEADER 0x56
+/* Legacy aliases - prefer imu_appl.h for new code */
+#include "imu_appl.h"
 
-/**
- * @brief IMU packet trailer byte
- * Marks the end of each IMU BLE packet
- */
-#define BLE_IMU_TAILER 0x57
-
-/**
- * @brief Number of IMU samples per BLE packet
- * At 400 Hz ODR, 20 samples = 50ms of data
- * This gives ~20 packets/second
- */
-#define IMU_SAMPLES_PER_PACKET 20
-
-/**
- * @brief Bytes per IMU sample (X, Y, Z accelerometer)
- * Each axis is 2 bytes (int16_t)
- */
-#define IMU_BYTES_PER_SAMPLE 6
-
-/**
- * @brief Total IMU BLE packet length in bytes
- *
- * Packet structure (127 bytes total):
- * - 1 byte: Header (0x56)
- * - 1 byte: Packet counter
- * - 4 bytes: Timestamp (microseconds, for cross-packet synchronization)
- * - 120 bytes: 20 samples × 6 bytes per sample
- *   - 2 bytes: Acceleration X (int16_t, big-endian)
- *   - 2 bytes: Acceleration Y (int16_t, big-endian)
- *   - 2 bytes: Acceleration Z (int16_t, big-endian)
- * - 1 byte: Trailer (0x57)
- */
-#define IMU_PCK_LNGTH 127
+#define BLE_IMU_HEADER    IMU_DATA_HEADER
+#define BLE_IMU_TAILER    IMU_DATA_TRAILER
+#define IMU_PCK_LNGTH     IMU_PCKT_SIZE
 
 /*==============================================================================
  * SPIM Instance Configuration

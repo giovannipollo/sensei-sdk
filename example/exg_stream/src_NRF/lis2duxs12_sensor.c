@@ -3,7 +3,7 @@
  *
  * File: lis2duxs12_sensor.c
  *
- * Last edited: 24.03.2025
+ * Last edited: 08.12.2025
  *
  * Copyright (C) 2025, ETH Zurich and University of Bologna.
  *
@@ -26,205 +26,129 @@
  * limitations under the License.
  */
 
+/**
+ * @file lis2duxs12_sensor.c
+ * @brief LIS2DUXS12 Low-Level Driver Implementation
+ *
+ * This module provides low-level driver functions for the LIS2DUXS12
+ * 3-axis accelerometer. For high-level streaming control, use the
+ * imu_appl.h API instead.
+ */
+
 #include "lis2duxs12_sensor.h"
 
 #include "i2c_helpers.h"
+#include "lis2duxs12_reg.h"
 
+#include <errno.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
 
 #include <zephyr/logging/log.h>
-#include <zephyr/logging/log_ctrl.h>
 
-#include "ads_defs.h"
-#include "bluetooth.h"
 #include "common.h"
 
 LOG_MODULE_DECLARE(sensors, LOG_LEVEL_INF);
 
-/* Define stack sizes and priorities */
-#define IMU_STACK_SIZE 2048
-#define IMU_PRIORITY 6
-
-#define LIS2DUXS12_INT_NODE DT_NODELABEL(gpio_lis2duxs12_int1)
-static const struct gpio_dt_spec lis2duxs12_int_gpio = GPIO_DT_SPEC_GET(LIS2DUXS12_INT_NODE, gpios);
-
-static struct gpio_callback lis2duxs12_cb_data;
-K_SEM_DEFINE(imu_int1, 0, 1);
-
 /*==============================================================================
- * IMU Packet Building Variables
+ * Private Definitions
  *============================================================================*/
 
-/** @brief IMU BLE packet buffer */
-static uint8_t imu_tx_buf[IMU_PCK_LNGTH];
+#define LIS2DUXS12_INT_NODE DT_NODELABEL(gpio_lis2duxs12_int1)
 
-/** @brief Current index in IMU packet buffer */
-static uint8_t imu_buf_inx = 0;
+/*==============================================================================
+ * Private Variables
+ *============================================================================*/
 
-/** @brief IMU packet counter (wraps at 256) */
-static uint8_t imu_pkt_counter = 0;
+/** @brief GPIO spec for LIS2DUXS12 INT1 pin */
+static const struct gpio_dt_spec lis2duxs12_int_gpio = GPIO_DT_SPEC_GET(LIS2DUXS12_INT_NODE, gpios);
 
-/** @brief Timestamp of first sample in current packet */
-static uint32_t imu_packet_timestamp = 0;
+/** @brief GPIO callback data */
+static struct gpio_callback lis2duxs12_cb_data;
 
-/** @brief Number of samples accumulated in current packet */
-static uint8_t imu_sample_count = 0;
+/** @brief Semaphore signaled on INT1 interrupt (data ready) */
+K_SEM_DEFINE(lis2duxs12_drdy_sem, 0, 1);
 
-lis2duxs12_xl_data_t data_xl;
-lis2duxs12_outt_data_t data_temp;
-lis2duxs12_md_t md;
-stmdev_ctx_t lis2duxs12_ctx;
-i2c_ctx_t i2c_ctx;
+/** @brief LIS2DUXS12 driver context */
+static stmdev_ctx_t lis2duxs12_ctx;
 
-static const struct device *const i2c_a = DEVICE_DT_GET(DT_ALIAS(i2ca));
+/** @brief I2C context for the sensor */
+static i2c_ctx_t i2c_ctx;
 
-void lis2duxs12_irq_callback(const struct device *dev, struct gpio_callback *cb, uint32_t pins) {
-  // Give the semaphore to the PPG thread
-  k_sem_give(&imu_int1);
-}
+/** @brief Sensor mode configuration */
+static lis2duxs12_md_t sensor_mode;
 
-void imu_receive_thread_temp_tap() {
-  k_sleep(K_MSEC(2000));
-  // init_lis2duxs12();
-  while (1) {
-    // busy loop for loop
-    k_sem_take(&imu_int1, K_FOREVER);
-    for (int i = 0; i < 1000000; i++) {
-      // Do nothing, just busy wait
-    }
-  }
-}
+/** @brief I2C device handle */
+static const struct device *const i2c_dev = DEVICE_DT_GET(DT_ALIAS(i2ca));
+
+/** @brief Flag indicating if sensor has been initialized */
+static bool sensor_initialized = false;
+
+/*==============================================================================
+ * Private Functions
+ *============================================================================*/
 
 /**
- * @brief Initialize IMU packet buffer for new packet
+ * @brief GPIO interrupt callback for LIS2DUXS12 INT1 pin
  *
- * Resets buffer index and prepares header bytes. The timestamp
- * will be captured when the first sample is added.
+ * Called when the sensor signals data ready via INT1 pin.
  */
-static void imu_packet_init(void) {
-  imu_buf_inx = 0;
-  imu_tx_buf[imu_buf_inx++] = BLE_IMU_HEADER;
-  imu_tx_buf[imu_buf_inx++] = imu_pkt_counter++;
-  // Reserve 4 bytes for timestamp (filled when first sample arrives)
-  imu_buf_inx += 4;
-  imu_sample_count = 0;
+static void lis2duxs12_irq_callback(const struct device *dev, struct gpio_callback *cb, 
+                                     uint32_t pins) {
+  ARG_UNUSED(dev);
+  ARG_UNUSED(cb);
+  ARG_UNUSED(pins);
+  
+  k_sem_give(&lis2duxs12_drdy_sem);
 }
 
-/**
- * @brief Add a sample to the IMU packet buffer and send if full
- *
- * Adds accelerometer X, Y, Z data to the packet. When the packet
- * contains IMU_SAMPLES_PER_PACKET samples, it is sent via BLE.
- *
- * @param xl Pointer to accelerometer data structure
- */
-static void imu_packet_add_sample(lis2duxs12_xl_data_t *xl) {
-  // Capture timestamp on first sample
-  if (imu_sample_count == 0) {
-    imu_packet_timestamp = k_cyc_to_us_floor32(k_cycle_get_32());
-    // Fill in timestamp bytes (little-endian)
-    imu_tx_buf[2] = (uint8_t)(imu_packet_timestamp & 0xFF);
-    imu_tx_buf[3] = (uint8_t)((imu_packet_timestamp >> 8) & 0xFF);
-    imu_tx_buf[4] = (uint8_t)((imu_packet_timestamp >> 16) & 0xFF);
-    imu_tx_buf[5] = (uint8_t)((imu_packet_timestamp >> 24) & 0xFF);
+/*==============================================================================
+ * Public Functions - Initialization & Configuration
+ *============================================================================*/
+
+int lis2duxs12_init(void) {
+  int ret;
+  int16_t error;
+
+  if (sensor_initialized) {
+    LOG_DBG("LIS2DUXS12 already initialized");
+    return 0;
   }
 
-  // Add X, Y, Z accelerometer data (big-endian, matching original EEG format)
-  imu_tx_buf[imu_buf_inx++] = (uint8_t)(xl->raw[0] >> 8);         // X high byte
-  imu_tx_buf[imu_buf_inx++] = (uint8_t)(xl->raw[0] & 0xFF);       // X low byte
-  imu_tx_buf[imu_buf_inx++] = (uint8_t)(xl->raw[1] >> 8);         // Y high byte
-  imu_tx_buf[imu_buf_inx++] = (uint8_t)(xl->raw[1] & 0xFF);       // Y low byte
-  imu_tx_buf[imu_buf_inx++] = (uint8_t)(xl->raw[2] >> 8);         // Z high byte
-  imu_tx_buf[imu_buf_inx++] = (uint8_t)(xl->raw[2] & 0xFF);       // Z low byte
-
-  imu_sample_count++;
-
-  // Check if packet is full
-  if (imu_sample_count >= IMU_SAMPLES_PER_PACKET) {
-    // Add trailer
-    imu_tx_buf[imu_buf_inx++] = BLE_IMU_TAILER;
-
-    // Send packet via BLE
-    if (ble_is_connected()) {
-      send_data_ble((char *)imu_tx_buf, IMU_PCK_LNGTH);
-    }
-
-    // Reset for next packet
-    imu_packet_init();
-  }
-}
-
-void imu_receive_thread() {
-  LOG_INF("IMU receive thread started");
-  k_msleep(2000);
-  LOG_INF("Initializing LIS2DUXS12...");
-  init_lis2duxs12();
-  LOG_INF("Enabling accelerometer sampling...");
-  enable_acc_sampling();
-  LOG_INF("LIS2DUXS12 setup complete, entering main loop...");
-
-  // Initialize the IMU packet buffer
-  imu_packet_init();
-
-  while (1) {
-    k_sem_take(&imu_int1, K_FOREVER);
-
-    int16_t error = NO_ERROR;
-    error = lis2duxs12_xl_data_get(&lis2duxs12_ctx, &md, &data_xl);
-    if (error != NO_ERROR) {
-      LOG_ERR(" * Error %d getting data", error);
-    } else {
-      LOG_DBG(" - Acceleration X                      : % 7.2f mg" SPACES, data_xl.mg[0]);
-      LOG_DBG(" - Acceleration Y                      : % 7.2f mg" SPACES, data_xl.mg[1]);
-      LOG_DBG(" - Acceleration Z                      : % 7.2f mg" SPACES, data_xl.mg[2]);
-
-      // Add sample to IMU packet (sends automatically when full)
-      imu_packet_add_sample(&data_xl);
-    }
-
-    // Temperature reading is no longer needed every sample
-    // Only read periodically if required
-    LOG_DBG("LIS2DUXS12 interrupt triggered");
-  }
-}
-
-void init_lis2duxs12(void) {
   LOG_INF("Starting LIS2DUXS12 initialization...");
-  // Configure the interrupt pin
+
+  /* Configure the interrupt pin */
   if (!device_is_ready(lis2duxs12_int_gpio.port)) {
     LOG_ERR("GPIO device %s is not ready", lis2duxs12_int_gpio.port->name);
-    return;
+    return -ENODEV;
   }
 
   LOG_INF("Configuring LIS2DUXS12 interrupt pin %d...", lis2duxs12_int_gpio.pin);
 
-  int ret = gpio_pin_configure_dt(&lis2duxs12_int_gpio, GPIO_INPUT);
+  ret = gpio_pin_configure_dt(&lis2duxs12_int_gpio, GPIO_INPUT);
   if (ret < 0) {
     LOG_ERR("Failed to configure GPIO pin %d (error %d)", lis2duxs12_int_gpio.pin, ret);
-    return;
+    return ret;
   }
-
-  LOG_INF("Configuring LIS2DUXS12 interrupt...");
 
   ret = gpio_pin_interrupt_configure_dt(&lis2duxs12_int_gpio, GPIO_INT_EDGE_TO_ACTIVE);
   if (ret < 0) {
-    LOG_ERR("Failed to configure interrupt on GPIO pin %d (error %d)", lis2duxs12_int_gpio.pin, ret);
-    return;
+    LOG_ERR("Failed to configure interrupt on GPIO pin %d (error %d)", 
+            lis2duxs12_int_gpio.pin, ret);
+    return ret;
   }
 
-  LOG_INF("Setting up LIS2DUXS12 interrupt callback...");
-
-  gpio_init_callback(&lis2duxs12_cb_data, lis2duxs12_irq_callback, BIT(lis2duxs12_int_gpio.pin));
+  gpio_init_callback(&lis2duxs12_cb_data, lis2duxs12_irq_callback, 
+                     BIT(lis2duxs12_int_gpio.pin));
   gpio_add_callback(lis2duxs12_int_gpio.port, &lis2duxs12_cb_data);
 
-  LOG_INF("Interrupt configured on %s pin %d", lis2duxs12_int_gpio.port->name, lis2duxs12_int_gpio.pin);
+  LOG_INF("Interrupt configured on %s pin %d", 
+          lis2duxs12_int_gpio.port->name, lis2duxs12_int_gpio.pin);
 
-  int16_t error = NO_ERROR;
   /* Create an I2C context and sensor context */
-  i2c_ctx.i2c_handle = i2c_a; // Provided device pointer from DTS
-  i2c_ctx.i2c_addr = 0x19;    // I2C address for LIS2DUXS12
+  i2c_ctx.i2c_handle = i2c_dev;
+  i2c_ctx.i2c_addr = 0x19;  /* I2C address for LIS2DUXS12 */
 
   lis2duxs12_ctx.write_reg = i2c_write_reg;
   lis2duxs12_ctx.read_reg = i2c_read_reg;
@@ -232,31 +156,29 @@ void init_lis2duxs12(void) {
 
   /* Exit deep power down */
   error = lis2duxs12_exit_deep_power_down(&lis2duxs12_ctx);
-  if (error != NO_ERROR) {
+  if (error != 0) {
     LOG_ERR("Error exiting deep power down: %d", error);
+    return -EIO;
   }
 
   LOG_INF("LIS2DUXS12 exited deep power down");
 
-  /* Read device ID */
+  /* Read device ID to verify communication */
   uint8_t sensor_id;
   error = lis2duxs12_device_id_get(&lis2duxs12_ctx, &sensor_id);
-  if (error != NO_ERROR) {
+  if (error != 0) {
     LOG_ERR("Error getting sensor ID: %d", error);
-  } else {
-    LOG_INF("LIS2DUXS12 ID: 0x%02X", sensor_id);
+    return -EIO;
   }
+  LOG_INF("LIS2DUXS12 ID: 0x%02X", sensor_id);
 
+  /* Reset sensor to default configuration */
   LOG_INF("Resetting LIS2DUXS12 to default configuration...");
-
-  /* Reset sensor */
   error = lis2duxs12_init_set(&lis2duxs12_ctx, LIS2DUXS12_RESET);
-  if (error != NO_ERROR) {
+  if (error != 0) {
     LOG_ERR("Error during reset: %d", error);
-    return;
+    return -EIO;
   }
-
-  LOG_INF("Waiting for LIS2DUXS12 reset to complete...");
 
   /* Wait for reset to complete */
   lis2duxs12_status_t status;
@@ -265,269 +187,277 @@ void init_lis2duxs12(void) {
   } while (status.sw_reset);
 
   LOG_INF("LIS2DUXS12 reset complete.");
+  sensor_initialized = true;
+
+  return 0;
 }
 
-void enable_acc_sampling() {
-  int16_t error = NO_ERROR;
+int lis2duxs12_start_sampling(void) {
+  int16_t error;
+
+  if (!sensor_initialized) {
+    LOG_ERR("LIS2DUXS12 not initialized");
+    return -ENODEV;
+  }
+
   /* Set sensor-only mode (disable embedded functions) */
   error = lis2duxs12_init_set(&lis2duxs12_ctx, LIS2DUXS12_SENSOR_ONLY_ON);
-  if (error != NO_ERROR) {
+  if (error != 0) {
     LOG_ERR("Error during sensor init: %d", error);
+    return -EIO;
   }
 
   /* Set DRDY mode to pulsed (interrupt mode) */
   error = lis2duxs12_data_ready_mode_set(&lis2duxs12_ctx, LIS2DUXS12_DRDY_PULSED);
-  if (error != NO_ERROR) {
+  if (error != 0) {
     LOG_ERR("Error setting DRDY mode: %d", error);
+    return -EIO;
   }
 
-  /* Set sensor operating mode: full–scale, bandwidth, and ODR */
-  md.fs = LIS2DUXS12_8g;
-  md.bw = LIS2DUXS12_ODR_div_16;
-  md.odr = LIS2DUXS12_400Hz_LP; // LIS2DUXS12_400Hz_LP;  // Example ODR; adjust as needed
-  error = lis2duxs12_mode_set(&lis2duxs12_ctx, &md);
-  if (error != NO_ERROR) {
+  /* Set sensor operating mode: full-scale, bandwidth, and ODR */
+  sensor_mode.fs = LIS2DUXS12_8g;
+  sensor_mode.bw = LIS2DUXS12_ODR_div_16;
+  sensor_mode.odr = LIS2DUXS12_400Hz_LP;
+  error = lis2duxs12_mode_set(&lis2duxs12_ctx, &sensor_mode);
+  if (error != 0) {
     LOG_ERR("Error setting sensor mode: %d", error);
+    return -EIO;
   }
 
   /* Configure interrupt behavior (using latched interrupt mode) */
-  lis2duxs12_int_config_t int_cfg;
+  lis2duxs12_int_config_t int_cfg = {0};
   int_cfg.int_cfg = LIS2DUXS12_INT_LATCHED;
   int_cfg.dis_rst_lir_all_int = 0;
   int_cfg.sleep_status_on_int = 0;
   error = lis2duxs12_int_config_set(&lis2duxs12_ctx, &int_cfg);
-  if (error != NO_ERROR) {
+  if (error != 0) {
     LOG_ERR("Error configuring interrupt mode: %d", error);
+    return -EIO;
   }
 
-  /* Route DRDY interrupt to RES (INT1) pin */
+  /* Route DRDY interrupt to INT1 pin */
   lis2duxs12_pin_int_route_t int_route = {0};
   int_route.int_on_res = 1;
   int_route.drdy = 1;
-  int_route.fifo_ovr = 0;
-  int_route.fifo_th = 0;
-  int_route.fifo_full = 0;
-  int_route.boot = 0;
-  int_route.free_fall = 0;
-  int_route.six_d = 0;
-  int_route.tap = 0;
-  int_route.wake_up = 0;
-  int_route.sleep_change = 0;
-  int_route.emb_function = 0;
-  int_route.timestamp = 0;
   error = lis2duxs12_pin_int1_route_set(&lis2duxs12_ctx, &int_route);
-  if (error != NO_ERROR) {
+  if (error != 0) {
     LOG_ERR("Error routing interrupt to INT1: %d", error);
+    return -EIO;
   }
+
+  /* Clear any pending semaphore */
+  k_sem_reset(&lis2duxs12_drdy_sem);
+
+  LOG_INF("LIS2DUXS12 sampling started at 400 Hz");
+  return 0;
 }
 
-void test_lis2duxs12() {
-  LOG_INF("Testing LIS2DUXS12 (Accelerometer)" SPACES);
+int lis2duxs12_stop_sampling(void) {
+  int16_t error;
 
-  int16_t error = NO_ERROR;
-
-  i2c_ctx_t i2c_ctx;
-  i2c_ctx.i2c_handle = i2c_a;
-  i2c_ctx.i2c_addr = 0x19;
-
-  lis2duxs12_ctx.write_reg = i2c_write_reg;
-  lis2duxs12_ctx.read_reg = i2c_read_reg;
-  lis2duxs12_ctx.handle = &i2c_ctx;
-
-  error = lis2duxs12_exit_deep_power_down(&lis2duxs12_ctx);
-  if (error != NO_ERROR) {
-    LOG_ERR(" * Error %d exiting deep power down", error);
+  if (!sensor_initialized) {
+    LOG_ERR("LIS2DUXS12 not initialized");
+    return -ENODEV;
   }
 
-  uint8_t lis2duxs12_id;
-  error = lis2duxs12_device_id_get(&lis2duxs12_ctx, &lis2duxs12_id);
-  if (error != NO_ERROR) {
-    LOG_ERR(" * Error %d getting ID", error);
-  } else {
-    LOG_INF(" - ID                                  : 0x%02X" SPACES, lis2duxs12_id);
+  /* Set ODR to power-down mode */
+  sensor_mode.odr = LIS2DUXS12_OFF;
+  error = lis2duxs12_mode_set(&lis2duxs12_ctx, &sensor_mode);
+  if (error != 0) {
+    LOG_ERR("Error setting power-down mode: %d", error);
+    return -EIO;
   }
 
-  /* Restore default configuration */
-  error = lis2duxs12_init_set(&lis2duxs12_ctx, LIS2DUXS12_RESET);
-  if (error != NO_ERROR) {
-    LOG_ERR(" * Error %d during reset", error);
-    return;
-  }
-
-  lis2duxs12_status_t status;
-  do {
-    lis2duxs12_status_get(&lis2duxs12_ctx, &status);
-  } while (status.sw_reset);
-
-  /* Set bdu and if_inc recommended for driver usage */
-  error = lis2duxs12_init_set(&lis2duxs12_ctx, LIS2DUXS12_SENSOR_ONLY_ON);
-  if (error != NO_ERROR) {
-    LOG_ERR(" * Error %d during init", error);
-  }
-
-  /* Set Output Data Rate */
-  md.fs = LIS2DUXS12_2g;
-  md.bw = LIS2DUXS12_ODR_div_16;
-  md.odr = LIS2DUXS12_1Hz6_ULP;
-  error = lis2duxs12_mode_set(&lis2duxs12_ctx, &md);
-  if (error != NO_ERROR) {
-    LOG_ERR(" * Error %d setting mode", error);
-  }
-
-  error = lis2duxs12_xl_data_get(&lis2duxs12_ctx, &md, &data_xl);
-  if (error != NO_ERROR) {
-    LOG_ERR(" * Error %d getting data", error);
-  } else {
-    LOG_DBG(" - Acceleration X                      : % 7.2f mg" SPACES, data_xl.mg[0]);
-    LOG_DBG(" - Acceleration Y                      : % 7.2f mg" SPACES, data_xl.mg[1]);
-    LOG_DBG(" - Acceleration Z                      : % 7.2f mg" SPACES, data_xl.mg[2]);
-  }
-
-  error = lis2duxs12_outt_data_get(&lis2duxs12_ctx, &md, &data_temp);
-  if (error != NO_ERROR) {
-    LOG_ERR(" * Error %d getting temperature", error);
-  } else {
-    LOG_DBG(" - Temperature                         : %3.2f °C" SPACES, data_temp.heat.deg_c);
-  }
+  LOG_INF("LIS2DUXS12 sampling stopped");
+  return 0;
 }
+
+/*==============================================================================
+ * Public Functions - Data Reading
+ *============================================================================*/
+
+int lis2duxs12_wait_data_ready(uint32_t timeout_ms) {
+  int ret;
+
+  if (!sensor_initialized) {
+    return -ENODEV;
+  }
+
+  if (timeout_ms == 0) {
+    ret = k_sem_take(&lis2duxs12_drdy_sem, K_NO_WAIT);
+  } else {
+    ret = k_sem_take(&lis2duxs12_drdy_sem, K_MSEC(timeout_ms));
+  }
+
+  if (ret == -EBUSY || ret == -EAGAIN) {
+    return -EAGAIN;  /* Timeout or not ready */
+  }
+
+  return ret;
+}
+
+int lis2duxs12_read_accel(int16_t *x, int16_t *y, int16_t *z) {
+  int16_t error;
+  lis2duxs12_xl_data_t data_xl;
+
+  if (!sensor_initialized) {
+    return -ENODEV;
+  }
+
+  if (x == NULL || y == NULL || z == NULL) {
+    return -EINVAL;
+  }
+
+  error = lis2duxs12_xl_data_get(&lis2duxs12_ctx, &sensor_mode, &data_xl);
+  if (error != 0) {
+    LOG_ERR("Error getting accelerometer data: %d", error);
+    return -EIO;
+  }
+
+  *x = data_xl.raw[0];
+  *y = data_xl.raw[1];
+  *z = data_xl.raw[2];
+
+  return 0;
+}
+
+int lis2duxs12_read_temperature(float *temp_celsius) {
+  int16_t error;
+  lis2duxs12_outt_data_t data_temp;
+
+  if (!sensor_initialized) {
+    return -ENODEV;
+  }
+
+  if (temp_celsius == NULL) {
+    return -EINVAL;
+  }
+
+  error = lis2duxs12_outt_data_get(&lis2duxs12_ctx, &sensor_mode, &data_temp);
+  if (error != 0) {
+    LOG_ERR("Error getting temperature data: %d", error);
+    return -EIO;
+  }
+
+  *temp_celsius = data_temp.heat.deg_c;
+  return 0;
+}
+
+/*==============================================================================
+ * Public Functions - Tap Detection
+ *============================================================================*/
+
 int lis2duxs12_enable_double_tap(void) {
   int16_t error;
   uint8_t value;
 
-  // Step 1: Switch to power-down mode (CTRL5 = 0x00)
+  if (!sensor_initialized) {
+    return -ENODEV;
+  }
+
+  /* Step 1: Switch to power-down mode */
   value = 0x00;
   error = lis2duxs12_write_reg(&lis2duxs12_ctx, LIS2DUXS12_CTRL5, &value, 1);
-  if (error != 0)
-    return error;
+  if (error != 0) {
+    return -EIO;
+  }
 
-  // Step 2: TAP_CFG0 = 0xC8
+  /* Step 2: TAP_CFG0 = 0xC8 */
   value = 0xC8;
   error = lis2duxs12_write_reg(&lis2duxs12_ctx, LIS2DUXS12_TAP_CFG0, &value, 1);
-  if (error != 0)
-    return error;
+  if (error != 0) {
+    return -EIO;
+  }
 
-  // Step 3: TAP_CFG1 = 0x28
+  /* Step 3: TAP_CFG1 = 0x28 */
   value = 0x28;
   error = lis2duxs12_write_reg(&lis2duxs12_ctx, LIS2DUXS12_TAP_CFG1, &value, 1);
-  if (error != 0)
-    return error;
+  if (error != 0) {
+    return -EIO;
+  }
 
-  // Step 4: TAP_CFG2 = 0x03
+  /* Step 4: TAP_CFG2 = 0x03 */
   value = 0x03;
   error = lis2duxs12_write_reg(&lis2duxs12_ctx, LIS2DUXS12_TAP_CFG2, &value, 1);
-  if (error != 0)
-    return error;
+  if (error != 0) {
+    return -EIO;
+  }
 
-  // Step 5: TAP_CFG3 = 0x84
+  /* Step 5: TAP_CFG3 = 0x84 */
   value = 0x84;
   error = lis2duxs12_write_reg(&lis2duxs12_ctx, LIS2DUXS12_TAP_CFG3, &value, 1);
-  if (error != 0)
-    return error;
+  if (error != 0) {
+    return -EIO;
+  }
 
-  // Step 6: TAP_CFG4 = 0x88
+  /* Step 6: TAP_CFG4 = 0x88 */
   value = 0x88;
   error = lis2duxs12_write_reg(&lis2duxs12_ctx, LIS2DUXS12_TAP_CFG4, &value, 1);
-  if (error != 0)
-    return error;
+  if (error != 0) {
+    return -EIO;
+  }
 
-  // Step 7: TAP_CFG5 = 0xE0
-  // Enables single-, double-, and triple-tap events; no rebound recognition.
+  /* Step 7: TAP_CFG5 = 0xE0 - Enable single-, double-, and triple-tap events */
   value = 0xE0;
   error = lis2duxs12_write_reg(&lis2duxs12_ctx, LIS2DUXS12_TAP_CFG5, &value, 1);
-  if (error != 0)
-    return error;
+  if (error != 0) {
+    return -EIO;
+  }
 
-  // Step 8: TAP_CFG6 = 0x0A
+  /* Step 8: TAP_CFG6 = 0x0A */
   value = 0x0A;
   error = lis2duxs12_write_reg(&lis2duxs12_ctx, LIS2DUXS12_TAP_CFG6, &value, 1);
-  if (error != 0)
-    return error;
+  if (error != 0) {
+    return -EIO;
+  }
 
-  // Step 9: MD1_CFG = 0x08
-  // This routes the TAP_IA signal (tap interrupt) to the RES (INT1) pin.
+  /* Step 9: MD1_CFG = 0x08 - Route TAP_IA signal to INT1 pin */
   value = 0x08;
   error = lis2duxs12_write_reg(&lis2duxs12_ctx, LIS2DUXS12_MD1_CFG, &value, 1);
-  if (error != 0)
-    return error;
+  if (error != 0) {
+    return -EIO;
+  }
 
-  // Step 10: INTERRUPT_CFG = 0x01
-  // Enables basic interrupts.
+  /* Step 10: INTERRUPT_CFG = 0x01 - Enable basic interrupts */
   value = 0x01;
   error = lis2duxs12_write_reg(&lis2duxs12_ctx, LIS2DUXS12_INTERRUPT_CFG, &value, 1);
-  if (error != 0)
-    return error;
+  if (error != 0) {
+    return -EIO;
+  }
 
-  // Step 11: CTRL5 = 0xA2
-  // Sets the sensor operating mode: ODR = 400 Hz, full scale = ±8 g.
+  /* Step 11: CTRL5 = 0xA2 - ODR = 400 Hz, full scale = +/-8g */
   value = 0xA2;
   error = lis2duxs12_write_reg(&lis2duxs12_ctx, LIS2DUXS12_CTRL5, &value, 1);
-  if (error != 0)
-    return error;
+  if (error != 0) {
+    return -EIO;
+  }
 
+  LOG_INF("Double-tap detection enabled");
   return 0;
 }
 
-int lis2duxs12_enable_double_tap_old(void) {
+int lis2duxs12_disable_tap(void) {
   int16_t error;
-  lis2duxs12_md_t md = {.odr = LIS2DUXS12_400Hz_LP, .fs = LIS2DUXS12_2g, .bw = LIS2DUXS12_ODR_div_4};
+  uint8_t value;
 
-  // Enable embedded functions
-  error = lis2duxs12_init_set(&lis2duxs12_ctx, LIS2DUXS12_SENSOR_EMB_FUNC_ON);
-  if (error != 0) {
-    return error;
+  if (!sensor_initialized) {
+    return -ENODEV;
   }
 
-  // Set accelerometer operating mode (ODR, FS, BW)
-  error = lis2duxs12_mode_set(&lis2duxs12_ctx, &md);
+  /* Disable tap detection in TAP_CFG5 */
+  value = 0x00;
+  error = lis2duxs12_write_reg(&lis2duxs12_ctx, LIS2DUXS12_TAP_CFG5, &value, 1);
   if (error != 0) {
-    return error;
+    return -EIO;
   }
 
-  // Enable tap detection in the MD1 configuration register (routes tap events on INT1)
-  lis2duxs12_md1_cfg_t md1_cfg;
-  error = lis2duxs12_read_reg(&lis2duxs12_ctx, LIS2DUXS12_MD1_CFG, (uint8_t *)&md1_cfg, 1);
+  /* Clear tap interrupt routing in MD1_CFG */
+  value = 0x00;
+  error = lis2duxs12_write_reg(&lis2duxs12_ctx, LIS2DUXS12_MD1_CFG, &value, 1);
   if (error != 0) {
-    return error;
-  }
-  md1_cfg.int1_tap = PROPERTY_ENABLE; // Enable tap detection
-  error = lis2duxs12_write_reg(&lis2duxs12_ctx, LIS2DUXS12_MD1_CFG, (uint8_t *)&md1_cfg, 1);
-  if (error != 0) {
-    return error;
+    return -EIO;
   }
 
-  // Enable double tap detection in the TAP_CFG5 register.
-  lis2duxs12_tap_cfg5_t tap_cfg5;
-  error = lis2duxs12_read_reg(&lis2duxs12_ctx, LIS2DUXS12_TAP_CFG5, (uint8_t *)&tap_cfg5, 1);
-  if (error != 0) {
-    return error;
-  }
-  tap_cfg5.double_tap_en = PROPERTY_ENABLE; // Enable double tap
-  error = lis2duxs12_write_reg(&lis2duxs12_ctx, LIS2DUXS12_TAP_CFG5, (uint8_t *)&tap_cfg5, 1);
-  if (error != 0) {
-    return error;
-  }
-
-  /* Route DRDY interrupt to RES (INT1) pin */
-  lis2duxs12_pin_int_route_t int_route = {0};
-  int_route.int_on_res = 1;
-  int_route.drdy = 0;
-  int_route.fifo_ovr = 0;
-  int_route.fifo_th = 0;
-  int_route.fifo_full = 0;
-  int_route.boot = 0;
-  int_route.free_fall = 0;
-  int_route.six_d = 0;
-  int_route.tap = 1;
-  int_route.wake_up = 0;
-  int_route.sleep_change = 0;
-  int_route.emb_function = 1;
-  int_route.timestamp = 0;
-  error = lis2duxs12_pin_int1_route_set(&lis2duxs12_ctx, &int_route);
-  if (error != NO_ERROR) {
-    LOG_ERR("Error routing interrupt to INT1: %d", error);
-  }
-
+  LOG_INF("Tap detection disabled");
   return 0;
 }
-
-K_THREAD_DEFINE(imu_tid, IMU_STACK_SIZE, imu_receive_thread, NULL, NULL, NULL, IMU_PRIORITY, 0, 0);

@@ -29,6 +29,7 @@
 #include "ads_appl.h"
 #include "ads_spi.h"
 #include "common.h"
+#include "imu_appl.h"
 #include "lis2duxs12_sensor.h"
 #include "mic_appl.h"
 #include "sync_streaming.h"
@@ -146,7 +147,13 @@ static void handle_ble_command(uint8_t cmd) {
     bat_data[3] = (uint8_t)bsp_get_total_power_mw();
     bat_data[4] = (uint8_t)bsp_get_battery_soc();
     bat_data[5] = (uint8_t)bsp_get_battery_voltage();
-    bat_data[6] = (uint8_t)data_temp.heat.deg_c;
+    /* Get temperature from IMU sensor if available */
+    float temp_celsius = 0.0f;
+    if (imu_read_temperature(&temp_celsius) == 0) {
+      bat_data[6] = (uint8_t)temp_celsius;
+    } else {
+      bat_data[6] = 0;
+    }
     send_data_ble(bat_data, 7);
     break;
 
@@ -268,6 +275,18 @@ static void handle_ble_command(uint8_t cmd) {
     ble_print_packet_stats(); /* Print BLE packet stats */
     sync_reset();       /* Clean up sync state */
     ResetConfigState(); /* Reset config state for next session */
+    break;
+
+  case START_IMU_STREAMING:
+    LOG_DBG("Ping START_IMU_STREAMING");
+    set_SM_state(S_NORDIC_STREAM);
+    imu_start_streaming();
+    break;
+
+  case STOP_IMU_STREAMING:
+    LOG_DBG("Ping STOP_IMU_STREAMING");
+    set_SM_state(S_LOW_POWER_CONNECTED);
+    imu_stop_streaming();
     break;
   }
 }
