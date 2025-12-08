@@ -58,11 +58,11 @@
 #include <zephyr/logging/log_ctrl.h>
 
 /* Application headers */
-#include "ads_appl.h"
-#include "ads_spi.h"
-#include "ble_appl.h"
-#include "lis2duxs12_sensor.h"
-#include "ppg_appl.h"
+#include "afe/ads_appl.h"
+#include "afe/ads_spi.h"
+#include "ble/ble_appl.h"
+#include "sensors/imu/lis2duxs12_sensor.h"
+#include "sensors/ppg/ppg_appl.h"
 
 /* BSP headers */
 #include "bsp/pwr_bsp.h"

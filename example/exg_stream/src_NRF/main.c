@@ -46,12 +46,12 @@
 #include "pwr/pwr.h"
 #include "pwr/pwr_common.h"
 
-#include "ads_spi.h"
-#include "ble_appl.h"
-#include "common.h"
-#include "imu_appl.h"
-#include "mic_appl.h"
-#include "state_machine.h"
+#include "afe/ads_spi.h"
+#include "ble/ble_appl.h"
+#include "core/common.h"
+#include "sensors/imu/imu_appl.h"
+#include "sensors/mic/mic_appl.h"
+#include "core/state_machine.h"
 
 static const struct device *const uart_dev = DEVICE_DT_GET_ONE(zephyr_cdc_acm_uart);
 

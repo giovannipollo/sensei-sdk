@@ -45,7 +45,7 @@
 
 #include <stdint.h>
 
-#include "lis2duxs12_reg.h"
+#include "sensors/imu/driver/lis2duxs12_reg.h"
 
 /*==============================================================================
  * Initialization & Configuration

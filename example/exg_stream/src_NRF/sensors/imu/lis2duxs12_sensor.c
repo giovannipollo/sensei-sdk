@@ -35,10 +35,10 @@
  * imu_appl.h API instead.
  */
 
-#include "lis2duxs12_sensor.h"
+#include "sensors/imu/lis2duxs12_sensor.h"
 
-#include "i2c_helpers.h"
-#include "lis2duxs12_reg.h"
+#include "core/i2c_helpers.h"
+#include "sensors/imu/driver/lis2duxs12_reg.h"
 
 #include <errno.h>
 #include <zephyr/device.h>
@@ -47,7 +47,7 @@
 
 #include <zephyr/logging/log.h>
 
-#include "common.h"
+#include "core/common.h"
 
 LOG_MODULE_DECLARE(sensors, LOG_LEVEL_INF);
 

@@ -35,10 +35,10 @@
  * accelerometer data acquisition and BLE streaming.
  */
 
-#include "imu_appl.h"
-#include "ble_appl.h"
-#include "lis2duxs12_sensor.h"
-#include "sync_streaming.h"
+#include "sensors/imu/imu_appl.h"
+#include "ble/ble_appl.h"
+#include "sensors/imu/lis2duxs12_sensor.h"
+#include "core/sync_streaming.h"
 
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>

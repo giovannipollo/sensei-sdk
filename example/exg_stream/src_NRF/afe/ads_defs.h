@@ -112,7 +112,7 @@
  *============================================================================*/
 
 /* Legacy aliases - prefer imu_appl.h for new code */
-#include "imu_appl.h"
+#include "sensors/imu/imu_appl.h"
 
 #define BLE_IMU_HEADER    IMU_DATA_HEADER
 #define BLE_IMU_TAILER    IMU_DATA_TRAILER

@@ -33,11 +33,11 @@
 #include "pwr/pwr_common.h"
 #include "pwr/thread_pwr.h"
 
-#include "ads_appl.h"
-#include "ads_spi.h"
-#include "ble_appl.h"
-#include "common.h"
-#include "sync_streaming.h"
+#include "afe/ads_appl.h"
+#include "afe/ads_spi.h"
+#include "ble/ble_appl.h"
+#include "core/common.h"
+#include "core/sync_streaming.h"
 
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>

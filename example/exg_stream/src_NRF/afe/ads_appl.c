@@ -35,7 +35,7 @@
  * command interface and the low-level SPI driver.
  */
 
-#include "ads_appl.h"
+#include "afe/ads_appl.h"
 
 #include <zephyr/logging/log.h>
 #include <zephyr/logging/log_ctrl.h>

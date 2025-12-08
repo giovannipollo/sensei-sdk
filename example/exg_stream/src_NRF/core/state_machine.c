@@ -45,9 +45,9 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 
-#include "board_streaming.h"
+#include "core/board_streaming.h"
 #include "bsp/pwr_bsp.h"
-#include "state_machine.h"
+#include "core/state_machine.h"
 
 /*===========================================================================*/
 /* Module Configuration                                                      */

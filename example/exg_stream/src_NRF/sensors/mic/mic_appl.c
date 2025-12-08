@@ -34,9 +34,9 @@
  * audio capture and BLE streaming.
  */
 
-#include "mic_appl.h"
-#include "ble_appl.h"
-#include "sync_streaming.h"
+#include "sensors/mic/mic_appl.h"
+#include "ble/ble_appl.h"
+#include "core/sync_streaming.h"
 
 #include <string.h>
 #include <zephyr/audio/dmic.h>

@@ -39,7 +39,7 @@
  * @see bluetooth.h for public API documentation
  */
 
-#include "bluetooth.h"
+#include "ble/bluetooth.h"
 
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/conn.h>
@@ -54,8 +54,8 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/settings/settings.h>
 
-#include "ads_appl.h"
-#include "ble_appl.h"
+#include "afe/ads_appl.h"
+#include "ble/ble_appl.h"
 
 LOG_MODULE_REGISTER(main_bluetooth, LOG_LEVEL_DBG);
 

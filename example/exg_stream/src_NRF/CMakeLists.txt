@@ -26,21 +26,36 @@ project(exg_stream)
 
 
 target_sources(app PRIVATE
+    # Entry point
     main.c
-    bluetooth.c
+
+    # Core
+    core/state_machine.c
+    core/board_streaming.c
+    core/sync_streaming.c
+    core/i2c_helpers.c
+
+    # BSP
     bsp/pwr_bsp.c
-    ble_appl.c
-    ads_appl.c
-    ads_spi.c
-    board_streaming.c
-    ppg_appl.c
-    i2c_helpers.c
-    imu_appl.c
-    lis2duxs12_sensor.c
-    lis2duxs12_reg.c
-    state_machine.c
-    mic_appl.c
-    sync_streaming.c
+
+    # AFE (Analog Front-End - ADS1298)
+    afe/ads_appl.c
+    afe/ads_spi.c
+
+    # Sensors - IMU
+    sensors/imu/imu_appl.c
+    sensors/imu/lis2duxs12_sensor.c
+    sensors/imu/driver/lis2duxs12_reg.c
+
+    # Sensors - Microphone
+    sensors/mic/mic_appl.c
+
+    # Sensors - PPG
+    sensors/ppg/ppg_appl.c
+
+    # BLE
+    ble/ble_appl.c
+    ble/bluetooth.c
 )
 target_include_directories(app PRIVATE
     .

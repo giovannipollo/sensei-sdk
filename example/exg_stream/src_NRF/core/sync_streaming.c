@@ -47,7 +47,7 @@
  * - `sync_target_count`: Only written by sync_begin/sync_reset (single caller)
  */
 
-#include "sync_streaming.h"
+#include "core/sync_streaming.h"
 
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>

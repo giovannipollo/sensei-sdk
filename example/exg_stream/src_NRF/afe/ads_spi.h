@@ -28,8 +28,8 @@
 #ifndef ADS_SPI_H
 #define ADS_SPI_H
 
-#include "ads_appl.h"
-#include "ads_defs.h"
+#include "afe/ads_appl.h"
+#include "afe/ads_defs.h"
 #include <stdbool.h>
 #include <stdint.h>
 

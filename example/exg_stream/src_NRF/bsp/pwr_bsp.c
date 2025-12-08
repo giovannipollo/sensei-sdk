@@ -36,10 +36,10 @@
 #include "pwr/pwr.h"
 
 #include "max77654.h"
-#include "ads_appl.h"
+#include "afe/ads_appl.h"
 
 
-#include "i2c_helpers.h"
+#include "core/i2c_helpers.h"
 
 // ======== Defines/Variables ======================================================================
 

@@ -26,7 +26,7 @@
  * limitations under the License.
  */
 
-#include "ppg_appl.h"
+#include "sensors/ppg/ppg_appl.h"
 #include <string.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>

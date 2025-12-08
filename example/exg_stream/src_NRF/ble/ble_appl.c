@@ -25,14 +25,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "ble_appl.h"
-#include "ads_appl.h"
-#include "ads_spi.h"
-#include "common.h"
-#include "imu_appl.h"
-#include "lis2duxs12_sensor.h"
-#include "mic_appl.h"
-#include "sync_streaming.h"
+#include "ble/ble_appl.h"
+#include "afe/ads_appl.h"
+#include "afe/ads_spi.h"
+#include "core/common.h"
+#include "sensors/imu/imu_appl.h"
+#include "sensors/imu/lis2duxs12_sensor.h"
+#include "sensors/mic/mic_appl.h"
+#include "core/sync_streaming.h"
 
 #include <zephyr/logging/log.h>
 #include <zephyr/logging/log_ctrl.h>

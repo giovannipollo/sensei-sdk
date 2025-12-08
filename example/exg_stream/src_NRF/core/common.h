@@ -40,8 +40,8 @@
 
 #include <stdint.h>
 
-#include "bluetooth.h"
-#include "state_machine.h"
+#include "ble/bluetooth.h"
+#include "core/state_machine.h"
 
 /*==============================================================================
  * Board State Definitions
