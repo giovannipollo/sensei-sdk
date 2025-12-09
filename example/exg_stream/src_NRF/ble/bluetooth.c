@@ -427,8 +427,8 @@ void ble_write_thread(void) {
   LOG_INF("BLE write thread started after initialization. Wait 5s before sending data...");
   k_sleep(K_MSEC(5000));
 
-  Set_ADS_Function(READ);
-  LOG_INF("ADS read function set. Now you can start sending data over BLE.");
+  // Set_ADS_Function(READ);
+  // LOG_INF("ADS read function set. Now you can start sending data over BLE.");
 
   for (;;) {
     k_sleep(K_MSEC(100));
