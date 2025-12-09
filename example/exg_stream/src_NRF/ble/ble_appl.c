@@ -98,7 +98,7 @@ void ble_send_thread(void *arg1, void *arg2, void *arg3) {
  * @brief Handle Configuration Data Reception
  *
  * Processes configuration parameters received from BLE after a
- * START_STREAMING_NORDIC command. The configuration data contains
+ * START_EEG_STREAMING command. The configuration data contains
  * 5 bytes: [SAMPLE_RATE, ADS_MODE, reserved, reserved, GAIN].
  * After processing, signals the config_received_sem semaphore to
  * unblock GetConfigParam().
@@ -231,16 +231,16 @@ static void handle_ble_command(uint8_t cmd) {
     LOG_DBG("Ping GO_TO_SLEEP");
     break;
 
-  case START_STREAMING_NORDIC:
-    LOG_DBG("Ping START_STREAMING_NORDIC");
+  case START_EEG_STREAMING:
+    LOG_DBG("Ping START_EEG_STREAMING");
     ble_reset_packet_counters(); /* Reset packet counters for new session */
     set_SM_state(S_NORDIC_STREAM);
     WaitingForConfig = 1;
     Set_ADS_Function(START);
     break;
 
-  case STOP_STREAMING_NORDIC:
-    LOG_DBG("Ping STOP_STREAMING_NORDIC");
+  case STOP_EEG_STREAMING:
+    LOG_DBG("Ping STOP_EEG_STREAMING");
     set_SM_state(S_LOW_POWER_CONNECTED);
     Set_ADS_Function(STOP);
     ble_print_packet_stats(); /* Print BLE packet stats */
@@ -322,7 +322,7 @@ void process_received_data_thread(void *arg1, void *arg2, void *arg3) {
     if (get_state_biogap() == STATE_PROGRAM_WOLF)
       continue;
 
-    // Handle config reception after START_STREAMING_NORDIC
+    // Handle config reception after START_EEG_STREAMING
     if (WaitingForConfig == 1) {
       handle_config_reception();
       continue;
@@ -348,7 +348,7 @@ void process_received_data_thread(void *arg1, void *arg2, void *arg3) {
  *
  * Blocks until configuration parameters are received from BLE using
  * a semaphore (no busy-waiting). This function is typically called
- * after START_STREAMING_NORDIC to wait for the streaming configuration.
+ * after START_EEG_STREAMING to wait for the streaming configuration.
  *
  * @param InitParams Pointer to array where configuration will be copied.
  *                   Must have space for at least 5 bytes:

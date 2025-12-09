@@ -200,7 +200,7 @@ void send_data_ble(char *data_array, int16_t length);
  * at the start of each streaming session for accurate per-session statistics.
  *
  * @note This is automatically called by the streaming command handlers
- *       (START_STREAMING_NORDIC, START_COMBINED_STREAMING).
+ *       (START_EEG_STREAMING, START_COMBINED_STREAMING).
  */
 void ble_reset_packet_counters(void);
 
@@ -215,7 +215,7 @@ void ble_reset_packet_counters(void);
  * @endcode
  *
  * @note This is automatically called by the streaming stop command handlers
- *       (STOP_STREAMING_NORDIC, STOP_COMBINED_STREAMING).
+ *       (STOP_EEG_STREAMING, STOP_COMBINED_STREAMING).
  *
  * @see ble_get_packet_stats() for programmatic access to statistics.
  */
