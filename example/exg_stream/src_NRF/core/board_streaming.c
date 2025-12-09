@@ -52,13 +52,8 @@ void loop_streaming() {
   switch (Get_ADS_Function()) {
   case START:
     if (first_run) {
-      // set_trigger(0);               // Reset the trigger.
       GetConfigParam(InitParams); // Send "Ready" to host and gets configuration parameters
-      // ADS_SPI_Config();             //Configure SPI as master
-      // ADS_drdy_init();
-      // Analog_OFF();
       k_msleep(200);
-      // Analog_ON();                  // Turn on analog section
       ADS_check_ID(ADS1298_A);
       ADS_check_ID(ADS1298_B);
       ADS_Init(InitParams, ADS1298_A); // Initialize ADS
@@ -83,11 +78,8 @@ void loop_streaming() {
       first_run = false;
 
     } else {
-      // set_trigger(0);               // Reset the trigger.
       GetConfigParam(InitParams); // Send "Ready" to host and gets configuration parameters
-      // Analog_OFF();
       k_msleep(200);
-      // Analog_ON();                  // Turn on analog section
       ADS_Init(InitParams, ADS1298_A); // Initialize ADS
       ADS_Init(InitParams, ADS1298_B); // Initialize ADS
 
@@ -117,9 +109,6 @@ void loop_streaming() {
       ADS_Stop();   // Stop ADS
       sync_reset(); // Reset sync state for next session
       k_msleep(100);
-      // Analog_OFF();                       //Power Down Analog
-      // if(get_es_state()==ESQ_RUNNING)
-      //   set_es_state(ESQ_DISABLE_HARDWARE);
     }
     break;
 
