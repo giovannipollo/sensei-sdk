@@ -62,7 +62,7 @@
  *
  * // In EXG state machine:
  * GetConfigParam(...);        // Wait for BLE config
- * ADS_Init(...);              // Initialize hardware
+ * ads_init(...);              // Initialize hardware
  * sync_wait(SYNC_SUBSYSTEM_EXG, 5000);  // Wait at barrier
  * ADS_Start();                // Start after barrier releases
  * ```
@@ -182,7 +182,7 @@ int sync_wait(sync_subsystem_t subsystem, uint32_t timeout_ms);
  *
  * Example:
  * @code
- * ADS_Init(...);
+ * ads_init(...);
  * if (sync_is_active()) {
  *     sync_wait(SYNC_SUBSYSTEM_EXG, 5000);
  * }

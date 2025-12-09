@@ -625,9 +625,8 @@ static int ads1298_write_spi(uint8_t size, enum ADS_id_t ads_id) {
  * @note If ID check fails, function enters infinite loop with error logging
  * @note 30ms delays allow device to complete operations per datasheet timing
  */
-void ADS_check_ID(enum ADS_id_t ads_id) {
+void ads_check_id(enum ADS_id_t ads_id) {
 
-  /*ADS INIZIALIZATION*/
   // RESET DEVICE
   pr_word[0] = _RESET;
   ads1298_write_spi(1, ads_id);
@@ -774,7 +773,7 @@ int ADS_dr_init() {
  * @note 30ms delays allow device to complete configuration per datasheet
  * @note Sets ads_initialized flag when complete
  */
-void ADS_Init(uint8_t *InitParams, enum ADS_id_t ads_id) {
+void ads_init(uint8_t *InitParams, enum ADS_id_t ads_id) {
 
   // buffer_counter = 0;
   tx_buf_inx = 0;
@@ -782,12 +781,7 @@ void ADS_Init(uint8_t *InitParams, enum ADS_id_t ads_id) {
   ble_tx_buf[tx_buf_inx++] = ++counter;
   // Reserve 4 bytes for timestamp (will be filled when packet is complete)
   tx_buf_inx += 4;
-
-  /*Work Arround for the issue of the SPI blocking execution sometimes. This forses CS to reset the bus*/
-  // pr_word[0]=_RESET;
-  // APP_ERROR_CHECK(nrf_drv_spi_transfer(&spi, pr_word, 1, empty_buffer, 1));
-
-  /*ADS INIZIALIZATION*/
+  
   // RESET DEVICE
   pr_word[0] = _RESET;
   spi_xfer_done = false;
@@ -804,17 +798,12 @@ void ADS_Init(uint8_t *InitParams, enum ADS_id_t ads_id) {
     ;
   k_msleep(30);
 
-  // WRITE REGS FROM REG1 - Set SampleRate FROM INIT - Test Signal 1 Hz, Ref. Buffer OFF
-  // pr_word[0]=_WREG|CONFIG1; pr_word[1]=InitParams[0]; pr_word[2]=(0xE0 +InitParams[0]); pr_word[3]=0x55;
-  // pr_word[4]=0xC0; pr_word[0]=_WREG|CONFIG1; pr_word[1]=2; pr_word[2]= 0xE0 + InitParams[0] ; pr_word[3]=0x55;
-  // pr_word[4]=0xC0;
-
   pr_word[0] = _WREG | CONFIG1;
   pr_word[1] = 2;
   pr_word[2] = 0xC0 + InitParams[0];
   pr_word[3] = 0x55;
-  pr_word[4] = 0xC0; // pr_word[4]=0b11001000; //pr_word[4]=0xC0;
-  // pr_word[0]=_WREG|CONFIG1; pr_word[1]=2; pr_word[2]= 0xE5; pr_word[3]=0x55; pr_word[4]=0xC0;
+  pr_word[4] = 0xC0;
+
   spi_xfer_done = false;
   ads1298_write_spi(5, ads_id);
   while (spi_xfer_done == false)
@@ -823,21 +812,10 @@ void ADS_Init(uint8_t *InitParams, enum ADS_id_t ads_id) {
   // SET CHANNEL REGS - ON, GAIN 6, SHORTED ELECTRODE INPUT
   pr_word[0] = _WREG | CH1SET;
   pr_word[1] = 7;
-  // #ifdef ONE_CHANNEL_ONLY
-  // pr_word[2]=InitParams[4]|InitParams[1]; // Configure first channel
-  // for (int i=3; i<10; i++)
-  //         pr_word[i]=0b10000000|InitParams[4]|InitParams[1]; // Disable all other channels
-  //         //pr_word[i]=0x60;
-  // #else
-  // for (int i=2; i<10; i++)
-  //         pr_word[i]=InitParams[4]|InitParams[1];
-  //         //pr_word[i]=0x60;
-  // #endif
 
   for (int i = 2; i < 10; i++) {
     pr_word[i] = InitParams[4] | InitParams[1];
   }
-  // pr_word[i]=0x60;
 
   spi_xfer_done = false;
   ads1298_write_spi(10, ads_id);
@@ -867,13 +845,7 @@ void ADS_Init(uint8_t *InitParams, enum ADS_id_t ads_id) {
  */
 void ADS_Stop() {
   skip_reads = true; // Flag to skip the fist samples as to make sure the signal is stable.
-
-  /*
-  if (gpio_pin_set_dt(&gpio_dt_ads1298_start_pin, 0) < 0) {  // Set START pin to disable
-      LOG_ERR("ADS1298 power GPIO set error");
-      return -1;
-  }
-  */
+  
   pr_word[0] = _SDATAC;
   spi_xfer_done = false;
   ads1298_write_spi(1, ADS1298_A);

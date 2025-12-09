@@ -51,13 +51,15 @@ uint8_t InitParams[5] = {2, 1, 0, 0, 0}; // SAMPLE RATE 1KSPS, CHANNEL FUNCTION 
 void loop_streaming() {
   switch (Get_ADS_Function()) {
   case START:
+    LOG_INF("loop_streaming: START command received");
     if (first_run) {
+      LOG_INF("First run initialization");
       GetConfigParam(InitParams); // Send "Ready" to host and gets configuration parameters
       k_msleep(200);
-      ADS_check_ID(ADS1298_A);
-      ADS_check_ID(ADS1298_B);
-      ADS_Init(InitParams, ADS1298_A); // Initialize ADS
-      ADS_Init(InitParams, ADS1298_B); // Initialize ADS
+      ads_check_id(ADS1298_A);
+      ads_check_id(ADS1298_B);
+      ads_init(InitParams, ADS1298_A); // Initialize ADS
+      ads_init(InitParams, ADS1298_B); // Initialize ADS
 
       ADS_Start(); // Start ADS
 
@@ -78,10 +80,11 @@ void loop_streaming() {
       first_run = false;
 
     } else {
+      LOG_INF("Subsequent run initialization");
       GetConfigParam(InitParams); // Send "Ready" to host and gets configuration parameters
       k_msleep(200);
-      ADS_Init(InitParams, ADS1298_A); // Initialize ADS
-      ADS_Init(InitParams, ADS1298_B); // Initialize ADS
+      ads_init(InitParams, ADS1298_A); // Initialize ADS
+      ads_init(InitParams, ADS1298_B); // Initialize ADS
 
       ADS_Start(); // Start ADS
 
