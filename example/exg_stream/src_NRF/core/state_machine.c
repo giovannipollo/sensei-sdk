@@ -184,18 +184,7 @@ static void s_low_power_connected_exit(void) { LOG_INF("Exiting LOW POWER CONNEC
  * - Bipolar mode (EMG): Differential measurement between two electrodes
  * - Unipolar mode (EEG): Single-ended measurement referenced to ground
  */
-static void s_nordic_stream_entry(void) {
-  LOG_INF("Entering NORDIC STREAM state");
-// #ifdef CONFIG_ADS_USE_BIPOLAR_MODE
-//   /* Bipolar mode - differential measurement */
-//   LOG_INF("Powering ADS bipolar");
-//   pwr_ads_on_bipolar();
-// #else
-//   /* Unipolar mode - single-ended measurement (default) */
-//   LOG_INF("Powering ADS unipolar");
-//   pwr_ads_on_unipolar();
-// #endif
-}
+static void s_nordic_stream_entry(void) { LOG_INF("Entering NORDIC STREAM state"); }
 
 /**
  * @brief Run callback for NORDIC_STREAM state
@@ -209,10 +198,7 @@ static void s_nordic_stream_run(void) { LOG_INF("Running NORDIC STREAM state"); 
  *
  * Powers off the ADS to conserve energy when streaming is no longer needed.
  */
-static void s_nordic_stream_exit(void) {
-  LOG_INF("Exiting NORDIC STREAM state");
-  pwr_ads_off();
-}
+static void s_nordic_stream_exit(void) { LOG_INF("Exiting NORDIC STREAM state"); }
 
 /*---------------------------------------------------------------------------*/
 /* S_GAP_CTRL State                                                          */
@@ -274,14 +260,14 @@ static const StateMachine_t state_machine[S_MAX_STATES] = {
  *       if called from multiple threads.
  */
 void set_SM_state(State_t new_state) {
-  if (new_state < S_MAX_STATES) {
-    LOG_INF("Transitioning from state %d to state %d", current_state, new_state);
-    state_machine[current_state].exit();  /* Call exit function of current state */
-    current_state = new_state;            /* Update current state */
-    state_machine[current_state].entry(); /* Call entry function of new state */
-  } else {
-    LOG_ERR("Invalid state: %d", new_state);
-  }
+  // if (new_state < S_MAX_STATES) {
+  //   LOG_INF("Transitioning from state %d to state %d", current_state, new_state);
+  //   state_machine[current_state].exit();  /* Call exit function of current state */
+  //   current_state = new_state;            /* Update current state */
+  //   state_machine[current_state].entry(); /* Call entry function of new state */
+  // } else {
+  //   LOG_ERR("Invalid state: %d", new_state);
+  // }
 }
 
 /**

@@ -48,82 +48,82 @@ bool first_run = true;
 
 uint8_t InitParams[5] = {2, 1, 0, 0, 0}; // SAMPLE RATE 1KSPS, CHANNEL FUNCTION SHORT, NC, NC, GAIN = 6
 
-void loop_streaming() {
-  switch (Get_ADS_Function()) {
-  case START:
-    // LOG_INF("loop_streaming: START command received");
-    // if (first_run) {
-    //   LOG_INF("First run initialization");
-    //   GetConfigParam(InitParams); // Send "Ready" to host and gets configuration parameters
-    //   k_msleep(200);
-    //   ads_check_id(ADS1298_A);
-    //   ads_check_id(ADS1298_B);
-    //   ads_init(InitParams, ADS1298_A); // Initialize ADS
-    //   ads_init(InitParams, ADS1298_B); // Initialize ADS
+// void loop_streaming() {
+//   switch (Get_ADS_Function()) {
+//   case START:
+//     // LOG_INF("loop_streaming: START command received");
+//     // if (first_run) {
+//     //   LOG_INF("First run initialization");
+//     //   GetConfigParam(InitParams); // Send "Ready" to host and gets configuration parameters
+//     //   k_msleep(200);
+//     //   ads_check_id(ADS1298_A);
+//     //   ads_check_id(ADS1298_B);
+//     //   ads_init(InitParams, ADS1298_A); // Initialize ADS
+//     //   ads_init(InitParams, ADS1298_B); // Initialize ADS
 
-    //   ADS_Start(); // Start ADS
+//     //   ADS_Start(); // Start ADS
 
-    //   /* Wait for ADC settling before sync barrier (500 samples @ 1kSPS = 500ms)
-    //    * This ensures EXG data starts at the same time as MIC after the barrier */
-    //   if (sync_is_active()) {
-    //     LOG_INF("EXG ready, waiting at sync barrier...");
-    //     int ret = sync_wait(SYNC_SUBSYSTEM_EXG, 5000); /* 5 second timeout */
-    //     if (ret != 0) {
-    //       LOG_ERR("Sync wait failed: %d", ret);
-    //       Set_ADS_Function(STILL);
-    //       break;
-    //     }
-    //   }
+//     //   /* Wait for ADC settling before sync barrier (500 samples @ 1kSPS = 500ms)
+//     //    * This ensures EXG data starts at the same time as MIC after the barrier */
+//     //   if (sync_is_active()) {
+//     //     LOG_INF("EXG ready, waiting at sync barrier...");
+//     //     int ret = sync_wait(SYNC_SUBSYSTEM_EXG, 5000); /* 5 second timeout */
+//     //     if (ret != 0) {
+//     //       LOG_ERR("Sync wait failed: %d", ret);
+//     //       Set_ADS_Function(STILL);
+//     //       break;
+//     //     }
+//     //   }
 
-    //   ADS_clear_skip_reads(); // Clear the skip flag since we waited manually
-    //   Set_ADS_Function(READ);
-    //   first_run = false;
+//     //   ADS_clear_skip_reads(); // Clear the skip flag since we waited manually
+//     //   Set_ADS_Function(READ);
+//     //   first_run = false;
 
-    // } else {
-    //   LOG_INF("Subsequent run initialization");
-    //   GetConfigParam(InitParams); // Send "Ready" to host and gets configuration parameters
-    //   k_msleep(200);
-    //   ads_init(InitParams, ADS1298_A); // Initialize ADS
-    //   ads_init(InitParams, ADS1298_B); // Initialize ADS
+//     // } else {
+//     //   LOG_INF("Subsequent run initialization");
+//     //   GetConfigParam(InitParams); // Send "Ready" to host and gets configuration parameters
+//     //   k_msleep(200);
+//     //   ads_init(InitParams, ADS1298_A); // Initialize ADS
+//     //   ads_init(InitParams, ADS1298_B); // Initialize ADS
 
-    //   ADS_Start(); // Start ADS
+//     //   ADS_Start(); // Start ADS
 
-    //   /* Wait for ADC settling before sync barrier (500 samples @ 1kSPS = 500ms)
-    //    * This ensures EXG data starts at the same time as MIC after the barrier */
-    //   if (sync_is_active()) {
-    //     LOG_INF("EXG ready, waiting at sync barrier...");
-    //     int ret = sync_wait(SYNC_SUBSYSTEM_EXG, 5000); /* 5 second timeout */
-    //     if (ret != 0) {
-    //       LOG_ERR("Sync wait failed: %d", ret);
-    //       Set_ADS_Function(STILL);
-    //       break;
-    //     }
-    //   }
+//     //   /* Wait for ADC settling before sync barrier (500 samples @ 1kSPS = 500ms)
+//     //    * This ensures EXG data starts at the same time as MIC after the barrier */
+//     //   if (sync_is_active()) {
+//     //     LOG_INF("EXG ready, waiting at sync barrier...");
+//     //     int ret = sync_wait(SYNC_SUBSYSTEM_EXG, 5000); /* 5 second timeout */
+//     //     if (ret != 0) {
+//     //       LOG_ERR("Sync wait failed: %d", ret);
+//     //       Set_ADS_Function(STILL);
+//     //       break;
+//     //     }
+//     //   }
 
-    //   ADS_clear_skip_reads(); // Clear the skip flag since we waited manually
-    //   Set_ADS_Function(READ);
-    // }
+//     //   ADS_clear_skip_reads(); // Clear the skip flag since we waited manually
+//     //   Set_ADS_Function(READ);
+//     // }
 
-    break;
+//     break;
 
-  case STOP:
-    // if (!first_run) {
-    //   Set_ADS_Function(STILL);
-    //   ADS_Stop();   // Stop ADS
-    //   sync_reset(); // Reset sync state for next session
-    //   k_msleep(100);
-    // }
-    break;
+//   case STOP:
+//     // if (!first_run) {
+//     //   Set_ADS_Function(STILL);
+//     //   ADS_Stop();   // Stop ADS
+//     //   sync_reset(); // Reset sync state for next session
+//     //   k_msleep(100);
+//     // }
+//     break;
 
-  case READ:
-    // process_ads_data();
-    break;
+//   case READ:
+//     // process_ads_data();
+//     break;
 
-  case STILL:
-    // set_trigger(0);
-    break;
+//   case STILL:
+//     // set_trigger(0);
+//     break;
 
-  default:
-    break;
-  }
-}
+//   default:
+//     break;
+//   }
+// }

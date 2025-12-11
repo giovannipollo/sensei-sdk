@@ -307,7 +307,9 @@ static void cb_ads_a_dr(const struct device *dev, struct gpio_callback *cb, uint
  * @note This function runs in interrupt context. Keep processing minimal.
  */
 static void spim_handler(nrfx_spim_evt_t const *p_event, void *p_context) {
-  LOG_INF("spim_handler called, event type: %d", p_event->type);
+
+  LOG_DBG("spim_handler called, event type: %d", p_event->type);
+  
   if (p_event->type == NRFX_SPIM_EVENT_DONE) {
     if (gpio_pin_set_dt(&gpio_dt_ads1298_a_cs, 0) < 0) { // Set CS pin to disable
       LOG_ERR("ADS1298 power GPIO set error");
@@ -319,8 +321,6 @@ static void spim_handler(nrfx_spim_evt_t const *p_event, void *p_context) {
     }
 
     if (Get_ADS_Function() == READ) {
-
-      // printf("\nADS DATA received -- ADS is in READ\n");
       memcpy(&ble_tx_buf[tx_buf_inx], &ads_rx_buf[3], 24);
       tx_buf_inx += 24;
 
@@ -338,7 +338,6 @@ static void spim_handler(nrfx_spim_evt_t const *p_event, void *p_context) {
         tx_buf_inx++;
         memcpy(&ble_tx_buf[tx_buf_inx], address_red + 0, 1);
         tx_buf_inx++;
-        // printf("%d\n", sense.red[sense.head]);
 
         memcpy(&ble_tx_buf[tx_buf_inx], address_IR + 2, 1);
         tx_buf_inx++;
@@ -361,7 +360,6 @@ static void spim_handler(nrfx_spim_evt_t const *p_event, void *p_context) {
         // Check if the last pck was handled and reset flag
 
         if (pck_ble_ready == true) {
-          // printf("\nADS DATA received -- stop ADS\n");
           Set_ADS_Function(STOP);
           pck_ble_ready = false;
           LOG_INF("Data packet not processed -- stop ADS");
@@ -400,7 +398,7 @@ static void spim_handler(nrfx_spim_evt_t const *p_event, void *p_context) {
       drdy_served = true;
     }
     spi_xfer_done = true;
-    // LOG_INF("Setting spi_xfer_done to true");
+    LOG_DBG("Setting spi_xfer_done to true");
   }
 }
 
@@ -598,12 +596,12 @@ static int ads1298_write_spi(uint8_t size, enum ADS_id_t ads_id) {
       return -1;
     }
   }
-  LOG_INF("Starting SPI write transfer");
+  LOG_DBG("Starting SPI write transfer");
   status = nrfx_spim_xfer(&spim_inst, &spim_xfer_desc, 0);
-  LOG_INF("Status: %d", status);
-  LOG_INF("SPI write transfer started");
+  LOG_DBG("Status: %d", status);
+  LOG_DBG("SPI write transfer started");
   NRFX_ASSERT(status == NRFX_SUCCESS);
-  LOG_INF("SPI write transfer asserted CS");
+  LOG_DBG("SPI write transfer asserted CS");
 
   return 0;
 }
@@ -657,7 +655,7 @@ void ads_check_id(enum ADS_id_t ads_id) {
       LOG_ERR("ADS1298 ID not correct");
     }
   }
-  LOG_INF("ADS1298 id checked");
+  LOG_DBG("ADS1298 id checked");
 }
 
 /*==============================================================================
@@ -857,13 +855,13 @@ void ADS_Stop() {
 
   pr_word[0] = _SDATAC;
   spi_xfer_done = false;
-  LOG_INF("Stopping ADS1298 A");
+  LOG_DBG("Stopping ADS1298 A");
   ads1298_write_spi(1, ADS1298_A);
-  LOG_INF("Waiting for ADS1298 A to stop");
+  LOG_DBG("Waiting for ADS1298 A to stop");
   while (spi_xfer_done == false)
     ;
-  LOG_INF("ADS1298 A stopped");
-  LOG_INF("waited 30ms after stopping ADS1298 A");
+  LOG_DBG("ADS1298 A stopped");
+  LOG_DBG("waited 30ms after stopping ADS1298 A");
 
   pr_word[0] = _SDATAC;
   spi_xfer_done = false;
@@ -972,7 +970,6 @@ void process_ads_data(void) {
       if (!skip_reads) {
 
         if (!drdy_served) {
-          // printf("________DATA READY NOT SERVED___________\n");
           Set_ADS_Function(STOP);
         } else {
           drdy_served = false;

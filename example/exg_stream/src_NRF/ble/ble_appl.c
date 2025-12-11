@@ -235,13 +235,11 @@ static void handle_ble_command(uint8_t cmd) {
   case START_EEG_STREAMING:
     LOG_INF("Ping START_EEG_STREAMING");
     ble_reset_packet_counters(); /* Reset packet counters for new session */
-    set_SM_state(S_NORDIC_STREAM);
     eeg_start_streaming();
     break;
 
   case STOP_EEG_STREAMING:
     LOG_INF("Ping STOP_EEG_STREAMING");
-    // set_SM_state(S_LOW_POWER_CONNECTED);
     eeg_stop_streaming();
     ble_print_packet_stats(); /* Print BLE packet stats */
     ResetConfigState(); /* Reset config state for next session */
@@ -249,19 +247,17 @@ static void handle_ble_command(uint8_t cmd) {
 
   case START_MIC_STREAMING:
     LOG_DBG("Ping START_MIC_STREAMING");
-    // set_SM_state(S_NORDIC_STREAM);
     mic_start_streaming();
     break;
 
   case STOP_MIC_STREAMING:
     LOG_DBG("Ping STOP_MIC_STREAMING");
-    set_SM_state(S_LOW_POWER_CONNECTED);
     mic_stop_streaming();
     break;
   case START_COMBINED_STREAMING:
     LOG_DBG("Ping START_COMBINED_STREAMING");
     ble_reset_packet_counters(); /* Reset packet counters for new session */
-    set_SM_state(S_NORDIC_STREAM);
+    // set_SM_state(S_NORDIC_STREAM);
     sync_begin(2); /* Setup sync barrier for 2 subsystems (EXG + MIC) */
     mic_start_streaming();
     WaitingForConfig = 1;
@@ -269,7 +265,7 @@ static void handle_ble_command(uint8_t cmd) {
     break;
   case STOP_COMBINED_STREAMING:
     LOG_DBG("Ping STOP_COMBINED_STREAMING");
-    set_SM_state(S_LOW_POWER_CONNECTED);
+    // set_SM_state(S_LOW_POWER_CONNECTED);
     mic_stop_streaming();
     Set_ADS_Function(STOP);
     ble_print_packet_stats(); /* Print BLE packet stats */
@@ -279,13 +275,11 @@ static void handle_ble_command(uint8_t cmd) {
 
   case START_IMU_STREAMING:
     LOG_DBG("Ping START_IMU_STREAMING");
-    // set_SM_state(S_NORDIC_STREAM);
     imu_start_streaming();
     break;
 
   case STOP_IMU_STREAMING:
     LOG_DBG("Ping STOP_IMU_STREAMING");
-    // set_SM_state(S_LOW_POWER_CONNECTED);
     imu_stop_streaming();
     break;
   }
