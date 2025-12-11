@@ -81,9 +81,7 @@ int main(void) {
 
   LOG_INF("LED Test on %s", CONFIG_BOARD);
 
-  // Initialize power management
-  // WIESEP: We do not start the power management task as it requires access to the I2C_A bus,
-  // which will be used by the GAP9.
+
   if (pwr_init()) {
     LOG_ERR("PWR Init failed!");
   }
@@ -106,13 +104,6 @@ int main(void) {
   pwr_charge_enable();
   LOG_INF("Initializing ADS...");
   ret = ADS_dr_init();
-// #ifdef CONFIG_ADS_USE_BIPOLAR_MODE
-//   LOG_INF("Powering ADS bipolar from main...");
-//   pwr_ads_on_bipolar();
-// #else
-//   LOG_INF("Powering ADS unipolar from main...");
-//   pwr_ads_on_unipolar();
-// #endif
 
   LOG_INF("Initializing SPI...");
   init_SPI();
@@ -150,13 +141,7 @@ int main(void) {
   } else {
     LOG_INF("EEG subsystem initialized");
   }
-
-  // Initialize and start state machine
-  // LOG_INF("Initializing state machine...");
-  // state_machine_init();
-  // LOG_INF("Starting state machine...");
-  // state_machine_start();
-  // LOG_INF("State machine initialization complete");
+  
 
   while (1) {
     k_msleep(1000); // Main thread can sleep now, all the work is handeled by other threads
