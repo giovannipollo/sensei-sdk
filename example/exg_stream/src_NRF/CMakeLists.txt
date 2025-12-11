@@ -30,7 +30,6 @@ target_sources(app PRIVATE
     main.c
 
     # Core
-    core/state_machine.c
     core/sync_streaming.c
     core/i2c_helpers.c
 
