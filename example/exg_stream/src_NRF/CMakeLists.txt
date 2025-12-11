@@ -53,6 +53,9 @@ target_sources(app PRIVATE
     # Sensors - PPG
     sensors/ppg/ppg_appl.c
 
+    # Sensors - EEG
+    sensors/eeg/eeg_appl.c
+
     # BLE
     ble/ble_appl.c
     ble/bluetooth.c

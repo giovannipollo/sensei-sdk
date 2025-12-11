@@ -45,8 +45,8 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 
-#include "core/board_streaming.h"
 #include "bsp/pwr_bsp.h"
+#include "core/board_streaming.h"
 #include "core/state_machine.h"
 
 /*===========================================================================*/
@@ -185,15 +185,16 @@ static void s_low_power_connected_exit(void) { LOG_INF("Exiting LOW POWER CONNEC
  * - Unipolar mode (EEG): Single-ended measurement referenced to ground
  */
 static void s_nordic_stream_entry(void) {
-#ifdef CONFIG_ADS_USE_BIPOLAR_MODE
-  /* Bipolar mode - differential measurement */
-  LOG_INF("Powering ADS bipolar");
-  pwr_ads_on_bipolar();
-#else
-  /* Unipolar mode - single-ended measurement (default) */
-  LOG_INF("Powering ADS unipolar");
-  pwr_ads_on_unipolar();
-#endif
+  LOG_INF("Entering NORDIC STREAM state");
+// #ifdef CONFIG_ADS_USE_BIPOLAR_MODE
+//   /* Bipolar mode - differential measurement */
+//   LOG_INF("Powering ADS bipolar");
+//   pwr_ads_on_bipolar();
+// #else
+//   /* Unipolar mode - single-ended measurement (default) */
+//   LOG_INF("Powering ADS unipolar");
+//   pwr_ads_on_unipolar();
+// #endif
 }
 
 /**
@@ -201,7 +202,7 @@ static void s_nordic_stream_entry(void) {
  *
  * Continuously executes the streaming loop to acquire and transmit ExG data.
  */
-static void s_nordic_stream_run(void) { loop_streaming(); }
+static void s_nordic_stream_run(void) { LOG_INF("Running NORDIC STREAM state"); }
 
 /**
  * @brief Exit callback for NORDIC_STREAM state
@@ -209,7 +210,7 @@ static void s_nordic_stream_run(void) { loop_streaming(); }
  * Powers off the ADS to conserve energy when streaming is no longer needed.
  */
 static void s_nordic_stream_exit(void) {
-  /* LOG_INF("Exiting NORDIC STREAM state"); */
+  LOG_INF("Exiting NORDIC STREAM state");
   pwr_ads_off();
 }
 
@@ -312,29 +313,29 @@ State_t get_SM_state(void) { return current_state; }
  * @param unused2 Unused parameter (required by thread signature)
  * @param unused3 Unused parameter (required by thread signature)
  */
-static void state_machine_thread(void *unused1, void *unused2, void *unused3) {
-  ARG_UNUSED(unused1);
-  ARG_UNUSED(unused2);
-  ARG_UNUSED(unused3);
+// static void state_machine_thread(void *unused1, void *unused2, void *unused3) {
+//   ARG_UNUSED(unused1);
+//   ARG_UNUSED(unused2);
+//   ARG_UNUSED(unused3);
 
-  /* Wait for initialization to complete */
-  LOG_INF("State machine thread wants to start");
-  k_sem_take(&state_machine_ready_sem, K_FOREVER);
-  LOG_INF("State machine thread started");
+//   /* Wait for initialization to complete */
+//   LOG_INF("State machine thread wants to start");
+//   k_sem_take(&state_machine_ready_sem, K_FOREVER);
+//   LOG_INF("State machine thread started");
 
-  /* Main state machine loop */
-  while (1) {
-    state_machine[current_state].run();
+//   /* Main state machine loop */
+//   while (1) {
+//     state_machine[current_state].run();
 
-#ifdef CONFIG_STATE_MACHINE_USE_CPU_IDLE
-    /* Use CPU idle - more responsive but higher power consumption */
-    k_cpu_idle();
-#else
-    /* Use sleep - better power efficiency, yields CPU to other threads */
-    k_sleep(K_USEC(1));
-#endif
-  }
-}
+// #ifdef CONFIG_STATE_MACHINE_USE_CPU_IDLE
+//     /* Use CPU idle - more responsive but higher power consumption */
+//     k_cpu_idle();
+// #else
+//     /* Use sleep - better power efficiency, yields CPU to other threads */
+//     k_sleep(K_USEC(1));
+// #endif
+//   }
+// }
 
 /**
  * @brief Define and create the state machine thread
@@ -342,8 +343,8 @@ static void state_machine_thread(void *unused1, void *unused2, void *unused3) {
  * Creates a Zephyr thread with specified stack size and priority.
  * The thread is created at boot but waits on the semaphore before starting.
  */
-K_THREAD_DEFINE(state_machine_thread_id, STATE_MACHINE_STACK_SIZE, state_machine_thread, NULL, NULL, NULL,
-                STATE_MACHINE_PRIORITY, 0, 0);
+// K_THREAD_DEFINE(state_machine_thread_id, STATE_MACHINE_STACK_SIZE, state_machine_thread, NULL, NULL, NULL,
+//                 STATE_MACHINE_PRIORITY, 0, 0);
 
 /*===========================================================================*/
 /* Initialization Functions                                                  */

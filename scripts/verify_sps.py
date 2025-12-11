@@ -301,9 +301,7 @@ def main():
     # Start streaming based on mode
     print(f"Starting streams (mode: {args.mode})...")
     if args.mode in ("all", "eeg"):
-        ser.write(bytes([18]))  # Start EEG (ADS)
-        time.sleep(0.2)
-        ser.write(create_eeg_command())
+        ser.write(bytes([18]))  # Start EEG
         time.sleep(0.2)
     if args.mode in ("all", "mic"):
         ser.write(bytes([26]))  # Start MIC

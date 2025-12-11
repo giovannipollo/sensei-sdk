@@ -426,9 +426,9 @@ void ble_write_thread(void) {
   k_sem_take(&ble_init_ok, K_FOREVER);
   LOG_INF("BLE write thread started after initialization. Wait 5s before sending data...");
   k_sleep(K_MSEC(5000));
+  LOG_INF("Now you can send data over BLE NUS");
 
   // Set_ADS_Function(READ);
-  // LOG_INF("ADS read function set. Now you can start sending data over BLE.");
 
   for (;;) {
     k_sleep(K_MSEC(100));
@@ -541,6 +541,7 @@ void send_data_ble(char *data_array, int16_t length) {
  *============================================================================*/
 
 void ble_reset_packet_counters(void) {
+  LOG_INF("Resetting BLE packet counters");
   ble_eeg_packets_sent = 0;
   ble_mic_packets_sent = 0;
   ble_imu_packets_sent = 0;

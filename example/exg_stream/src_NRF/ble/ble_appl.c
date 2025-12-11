@@ -33,6 +33,7 @@
 #include "sensors/imu/lis2duxs12_sensor.h"
 #include "sensors/mic/mic_appl.h"
 #include "core/sync_streaming.h"
+#include "sensors/eeg/eeg_appl.h"
 
 #include <zephyr/logging/log.h>
 #include <zephyr/logging/log_ctrl.h>
@@ -104,7 +105,7 @@ void ble_send_thread(void *arg1, void *arg2, void *arg3) {
  * unblock GetConfigParam().
  */
 static void handle_config_reception(void) {
-  LOG_DBG("Config received");
+  LOG_INF("Config received");
   ConfigParams[0] = ble_data_available.data[0];
   ConfigParams[1] = ble_data_available.data[1];
   ConfigParams[2] = ble_data_available.data[2];
@@ -232,24 +233,23 @@ static void handle_ble_command(uint8_t cmd) {
     break;
 
   case START_EEG_STREAMING:
-    LOG_DBG("Ping START_EEG_STREAMING");
+    LOG_INF("Ping START_EEG_STREAMING");
     ble_reset_packet_counters(); /* Reset packet counters for new session */
     set_SM_state(S_NORDIC_STREAM);
-    WaitingForConfig = 1;
-    Set_ADS_Function(START);
+    eeg_start_streaming();
     break;
 
   case STOP_EEG_STREAMING:
-    LOG_DBG("Ping STOP_EEG_STREAMING");
-    set_SM_state(S_LOW_POWER_CONNECTED);
-    Set_ADS_Function(STOP);
+    LOG_INF("Ping STOP_EEG_STREAMING");
+    // set_SM_state(S_LOW_POWER_CONNECTED);
+    eeg_stop_streaming();
     ble_print_packet_stats(); /* Print BLE packet stats */
     ResetConfigState(); /* Reset config state for next session */
     break;
 
   case START_MIC_STREAMING:
     LOG_DBG("Ping START_MIC_STREAMING");
-    set_SM_state(S_NORDIC_STREAM);
+    // set_SM_state(S_NORDIC_STREAM);
     mic_start_streaming();
     break;
 
@@ -279,13 +279,13 @@ static void handle_ble_command(uint8_t cmd) {
 
   case START_IMU_STREAMING:
     LOG_DBG("Ping START_IMU_STREAMING");
-    set_SM_state(S_NORDIC_STREAM);
+    // set_SM_state(S_NORDIC_STREAM);
     imu_start_streaming();
     break;
 
   case STOP_IMU_STREAMING:
     LOG_DBG("Ping STOP_IMU_STREAMING");
-    set_SM_state(S_LOW_POWER_CONNECTED);
+    // set_SM_state(S_LOW_POWER_CONNECTED);
     imu_stop_streaming();
     break;
   }
@@ -316,17 +316,11 @@ void process_received_data_thread(void *arg1, void *arg2, void *arg3) {
       continue;
 
     ble_data_available.available = false;
-    LOG_DBG("Received data from BLE");
+    LOG_INF("Received data from BLE");
 
     // Skip processing in programming mode
     if (get_state_biogap() == STATE_PROGRAM_WOLF)
       continue;
-
-    // Handle config reception after START_EEG_STREAMING
-    if (WaitingForConfig == 1) {
-      handle_config_reception();
-      continue;
-    }
 
     // Forward to GAP9 if in master mode
     if (get_state_biogap() == STATE_GAP9_MASTER) {
@@ -361,6 +355,7 @@ uint32_t GetConfigParam(uint8_t *InitParams) {
 
   /* Block until config is received (with 30 second timeout) */
   int ret = k_sem_take(&config_received_sem, K_SECONDS(30));
+  LOG_INF("Semaphore taken, ret = %d", ret);
   if (ret != 0) {
     LOG_ERR("Timeout waiting for configuration parameters");
     return -EAGAIN;

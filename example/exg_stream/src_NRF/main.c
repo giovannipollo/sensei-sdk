@@ -51,6 +51,7 @@
 #include "core/common.h"
 #include "sensors/imu/imu_appl.h"
 #include "sensors/mic/mic_appl.h"
+#include "sensors/eeg/eeg_appl.h"
 #include "core/state_machine.h"
 
 static const struct device *const uart_dev = DEVICE_DT_GET_ONE(zephyr_cdc_acm_uart);
@@ -101,21 +102,17 @@ int main(void) {
   }
   LOG_INF("USB enabled");
 
-  // LOG_INF("Initializing LIS2DUXS12...");
-  // init_lis2duxs12();
   LOG_INF("Enabling charge...");
   pwr_charge_enable();
   LOG_INF("Initializing ADS...");
   ret = ADS_dr_init();
-#ifdef CONFIG_ADS_USE_BIPOLAR_MODE
-  LOG_INF("Powering ADS bipolar from main...");
-  /* Bipolar mode - differential measurement */
-  pwr_ads_on_bipolar();
-#else
-  LOG_INF("Powering ADS unipolar from main...");
-  /* Unipolar mode - single-ended measurement (default) */
-  pwr_ads_on_unipolar();
-#endif
+// #ifdef CONFIG_ADS_USE_BIPOLAR_MODE
+//   LOG_INF("Powering ADS bipolar from main...");
+//   pwr_ads_on_bipolar();
+// #else
+//   LOG_INF("Powering ADS unipolar from main...");
+//   pwr_ads_on_unipolar();
+// #endif
 
   LOG_INF("Initializing SPI...");
   init_SPI();
@@ -146,12 +143,20 @@ int main(void) {
     LOG_INF("IMU initialized");
   }
 
+  // Initialize EEG subsystem
+  LOG_INF("Initializing EEG subsystem...");
+  if (eeg_init() != 0) {
+    LOG_WRN("EEG initialization failed - EEG streaming disabled");
+  } else {
+    LOG_INF("EEG subsystem initialized");
+  }
+
   // Initialize and start state machine
-  LOG_INF("Initializing state machine...");
-  state_machine_init();
-  LOG_INF("Starting state machine...");
-  state_machine_start();
-  LOG_INF("State machine initialization complete");
+  // LOG_INF("Initializing state machine...");
+  // state_machine_init();
+  // LOG_INF("Starting state machine...");
+  // state_machine_start();
+  // LOG_INF("State machine initialization complete");
 
   while (1) {
     k_msleep(1000); // Main thread can sleep now, all the work is handeled by other threads
