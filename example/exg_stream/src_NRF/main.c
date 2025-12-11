@@ -52,7 +52,6 @@
 #include "sensors/imu/imu_appl.h"
 #include "sensors/mic/mic_appl.h"
 #include "sensors/eeg/eeg_appl.h"
-#include "core/state_machine.h"
 
 static const struct device *const uart_dev = DEVICE_DT_GET_ONE(zephyr_cdc_acm_uart);
 
@@ -141,7 +140,7 @@ int main(void) {
   } else {
     LOG_INF("EEG subsystem initialized");
   }
-  
+
 
   while (1) {
     k_msleep(1000); // Main thread can sleep now, all the work is handeled by other threads

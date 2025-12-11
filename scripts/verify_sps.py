@@ -6,10 +6,11 @@ Usage:
     python scripts/verify_sps.py /dev/cu.usbmodem* [--duration SECONDS] [--mode MODE]
 
 Modes:
-    all  - Stream EEG, MIC, and IMU (default)
-    eeg  - Stream EEG only
-    mic  - Stream MIC only
-    imu  - Stream IMU only (now independent, uses commands 33/34)
+    all     - Stream EEG, MIC, and IMU (default)
+    eeg     - Stream EEG only
+    mic     - Stream MIC only
+    imu     - Stream IMU only (uses commands 33/34)
+    mic-imu - Stream MIC and IMU together (no EEG)
 """
 
 import argparse
@@ -120,12 +121,29 @@ def detect_packet_v2(buffer: bytes, mode: str) -> tuple[str, int, int] | None:
 
 def detect_packet(buffer: bytes, mode: str, debug: bool = False) -> tuple[str, int, int] | None:
     """Returns (packet_type, packet_size, offset) or None."""
-    if len(buffer) < MIC_PACKET_SIZE:
+    
+    # Define which packet types are enabled for each mode
+    eeg_enabled = mode in ("all", "eeg")
+    mic_enabled = mode in ("all", "mic", "mic-imu")
+    imu_enabled = mode in ("all", "imu", "mic-imu")
+    
+    # Determine minimum buffer size needed based on enabled packet types
+    min_sizes = []
+    if eeg_enabled:
+        min_sizes.append(EEG_PACKET_SIZE)
+    if mic_enabled:
+        min_sizes.append(MIC_PACKET_SIZE)
+    if imu_enabled:
+        min_sizes.append(IMU_PACKET_SIZE)
+    
+    # We need at least enough bytes to check for the smallest enabled packet
+    min_required = min(min_sizes) if min_sizes else MIC_PACKET_SIZE
+    if len(buffer) < min_required:
         return None
         
     # CRITICAL FIX: If we see EEG header at position 0, we MUST wait for
     # enough data to verify it's a complete EEG packet before checking MIC
-    if mode in ("all", "eeg") and buffer[0] == EEG_HEADER:
+    if eeg_enabled and buffer[0] == EEG_HEADER:
         if len(buffer) < EEG_PACKET_SIZE:
             return None  # Wait for more data!
         if buffer[EEG_PACKET_SIZE - 1] == EEG_TRAILER:
@@ -133,15 +151,8 @@ def detect_packet(buffer: bytes, mode: str, debug: bool = False) -> tuple[str, i
         # EEG header but invalid trailer - skip this byte (could be MIC trailer)
         return ("SKIP", 0, 1)
     
-    # Now check MIC at position 0
-    if mode in ("all", "mic") and buffer[0] == MIC_HEADER:
-        if buffer[MIC_PACKET_SIZE - 1] == MIC_TRAILER:
-            return ("MIC", MIC_PACKET_SIZE, 0)
-        # MIC header but invalid trailer - skip this byte
-        return ("SKIP", 0, 1)
-    
-    # Check IMU at position 0
-    if mode in ("all", "imu") and buffer[0] == IMU_HEADER:
+    # Check IMU at position 0 (check before MIC since IMU has unique header 0x56)
+    if imu_enabled and buffer[0] == IMU_HEADER:
         if len(buffer) < IMU_PACKET_SIZE:
             return None  # Wait for more data
         if buffer[IMU_PACKET_SIZE - 1] == IMU_TRAILER:
@@ -149,14 +160,23 @@ def detect_packet(buffer: bytes, mode: str, debug: bool = False) -> tuple[str, i
         # IMU header but invalid trailer - skip this byte
         return ("SKIP", 0, 1)
     
+    # Now check MIC at position 0
+    if mic_enabled and buffer[0] == MIC_HEADER:
+        if len(buffer) < MIC_PACKET_SIZE:
+            return None  # Wait for more data
+        if buffer[MIC_PACKET_SIZE - 1] == MIC_TRAILER:
+            return ("MIC", MIC_PACKET_SIZE, 0)
+        # MIC header but invalid trailer - skip this byte
+        return ("SKIP", 0, 1)
+    
     # No valid packet at position 0 - scan for next header
     for i in range(1, len(buffer)):
-        if mode in ("all", "eeg") and buffer[i] == EEG_HEADER:
+        if eeg_enabled and buffer[i] == EEG_HEADER:
             return ("SKIP", 0, i)  # Skip to EEG header
-        if mode in ("all", "mic") and buffer[i] == MIC_HEADER:
-            return ("SKIP", 0, i)  # Skip to MIC header
-        if mode in ("all", "imu") and buffer[i] == IMU_HEADER:
+        if imu_enabled and buffer[i] == IMU_HEADER:
             return ("SKIP", 0, i)  # Skip to IMU header
+        if mic_enabled and buffer[i] == MIC_HEADER:
+            return ("SKIP", 0, i)  # Skip to MIC header
     
     # No headers found - skip all but last byte
     if len(buffer) > 1:
@@ -290,7 +310,7 @@ def main():
     parser.add_argument("port", help="Serial port")
     parser.add_argument("--baud", type=int, default=2000000, help="Baud rate")
     parser.add_argument("--duration", type=float, default=5.0, help="Duration in seconds")
-    parser.add_argument("--mode", choices=["all", "eeg", "mic", "imu"], default="all", help="Stream mode")
+    parser.add_argument("--mode", choices=["all", "eeg", "mic", "imu", "mic-imu"], default="all", help="Stream mode")
     parser.add_argument("--debug", action="store_true", help="Show packet sequence")
     parser.add_argument("--analyze", action="store_true", help="Analyze raw stream for overlaps")
     args = parser.parse_args()
@@ -298,16 +318,21 @@ def main():
     ser = serial.Serial(args.port, args.baud, timeout=0.1)
     ser.reset_input_buffer()
 
+    # Define which streams are enabled based on mode
+    eeg_enabled = args.mode in ("all", "eeg")
+    mic_enabled = args.mode in ("all", "mic", "mic-imu")
+    imu_enabled = args.mode in ("all", "imu", "mic-imu")
+
     # Start streaming based on mode
     print(f"Starting streams (mode: {args.mode})...")
-    if args.mode in ("all", "eeg"):
+    if eeg_enabled:
         ser.write(bytes([18]))  # Start EEG
         time.sleep(0.2)
-    if args.mode in ("all", "mic"):
+    if mic_enabled:
         ser.write(bytes([26]))  # Start MIC
         time.sleep(0.2)
-    if args.mode in ("all", "imu"):
-        ser.write(bytes([33]))  # Start IMU (new independent command)
+    if imu_enabled:
+        ser.write(bytes([33]))  # Start IMU
         time.sleep(0.2)
 
     print(f"Collecting for {args.duration}s...\n")
@@ -346,23 +371,24 @@ def main():
                     del buffer[:offset]
                     continue
 
-                del buffer[:packet_size]
-
                 if packet_type == "EEG":
+                    del buffer[:packet_size]
                     eeg_samples += EEG_SAMPLES_PER_PACKET
                     eeg_packets += 1
                     packet_sequence.append("E")
                 elif packet_type == "MIC":
+                    del buffer[:packet_size]
                     mic_samples += MIC_SAMPLES_PER_PACKET
                     mic_packets += 1
                     packet_sequence.append("M")
                 elif packet_type == "IMU":
-                    # Extract IMU packet info before removing from buffer
+                    # Extract IMU packet info BEFORE removing from buffer
                     packet_data = bytes(buffer[:IMU_PACKET_SIZE])
                     counter, timestamp, samples = extract_imu_info(packet_data)
                     imu_timestamps.append((counter, timestamp))
                     imu_first_samples.append(samples[0])  # Store first sample for debug
                     
+                    del buffer[:packet_size]
                     imu_samples += IMU_SAMPLES_PER_PACKET
                     imu_packets += 1
                     packet_sequence.append("I")
@@ -370,27 +396,43 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
-        if args.mode in ("all", "eeg"):
+        # Stop streams based on mode
+        eeg_enabled = args.mode in ("all", "eeg")
+        mic_enabled = args.mode in ("all", "mic", "mic-imu")
+        imu_enabled = args.mode in ("all", "imu", "mic-imu")
+        
+        if eeg_enabled:
             ser.write(bytes([19]))  # Stop EEG
             time.sleep(0.1)
-        if args.mode in ("all", "mic"):
+        if mic_enabled:
             ser.write(bytes([27]))  # Stop MIC
             time.sleep(0.1)
-        if args.mode in ("all", "imu"):
-            ser.write(bytes([34]))  # Stop IMU (new independent command)
+        if imu_enabled:
+            ser.write(bytes([34]))  # Stop IMU
             time.sleep(0.1)
         ser.close()
 
     elapsed = time.time() - start_time
+    
+    # Define which streams are enabled based on mode
+    eeg_enabled = args.mode in ("all", "eeg")
+    mic_enabled = args.mode in ("all", "mic", "mic-imu")
+    imu_enabled = args.mode in ("all", "imu", "mic-imu")
 
     print("=" * 40)
     print(f"Duration: {elapsed:.2f}s")
-    print(f"EEG: {eeg_samples/elapsed:.0f} sps (expected: 500)")
-    print(f"MIC: {mic_samples/elapsed:.0f} sps (expected: 16000)")
-    print(f"IMU: {imu_samples/elapsed:.0f} sps (expected: 400)")
-    print(f"EEG packets: {eeg_packets} ({eeg_packets/elapsed:.1f}/s, expected: 125/s)")
-    print(f"MIC packets: {mic_packets} ({mic_packets/elapsed:.1f}/s, expected: 250/s)")
-    print(f"IMU packets: {imu_packets} ({imu_packets/elapsed:.1f}/s, expected: 20/s)")
+    if eeg_enabled:
+        print(f"EEG: {eeg_samples/elapsed:.0f} sps (expected: 500)")
+    if mic_enabled:
+        print(f"MIC: {mic_samples/elapsed:.0f} sps (expected: 16000)")
+    if imu_enabled:
+        print(f"IMU: {imu_samples/elapsed:.0f} sps (expected: 400)")
+    if eeg_enabled:
+        print(f"EEG packets: {eeg_packets} ({eeg_packets/elapsed:.1f}/s, expected: 125/s)")
+    if mic_enabled:
+        print(f"MIC packets: {mic_packets} ({mic_packets/elapsed:.1f}/s, expected: 250/s)")
+    if imu_enabled:
+        print(f"IMU packets: {imu_packets} ({imu_packets/elapsed:.1f}/s, expected: 20/s)")
     print(f"Skipped bytes: {skipped_bytes}")
     print("=" * 40)
     
