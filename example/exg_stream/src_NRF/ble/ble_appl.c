@@ -246,12 +246,12 @@ static void handle_ble_command(uint8_t cmd) {
     break;
 
   case START_MIC_STREAMING:
-    LOG_DBG("Ping START_MIC_STREAMING");
+    LOG_INF("Ping START_MIC_STREAMING");
     mic_start_streaming();
     break;
 
   case STOP_MIC_STREAMING:
-    LOG_DBG("Ping STOP_MIC_STREAMING");
+    LOG_INF("Ping STOP_MIC_STREAMING");
     mic_stop_streaming();
     break;
   case START_COMBINED_STREAMING:

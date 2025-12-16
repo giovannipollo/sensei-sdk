@@ -48,12 +48,15 @@
 
 // Include BLE application header for packet transmission
 #include "ble/ble_appl.h"
+#include "bsp/pwr_bsp.h"
 
 // Include sync streaming for synchronized start/stop
 #include "core/sync_streaming.h"
 
 LOG_MODULE_REGISTER(eeg_appl, LOG_LEVEL_INF);
 
+#define EEG_THREAD_STACK_SIZE 2048
+#define EEG_THREAD_PRIORITY 6
 /*==============================================================================
  * Static Variables
  *============================================================================*/
@@ -88,7 +91,7 @@ static void eeg_streaming_thread(void *arg1, void *arg2, void *arg3);
  * Thread Definition
  *============================================================================*/
 
-K_THREAD_DEFINE(eeg_thread_id, 2048, eeg_streaming_thread, NULL, NULL, NULL, 7, 0, 0);
+K_THREAD_DEFINE(eeg_thread_id, EEG_THREAD_STACK_SIZE, eeg_streaming_thread, NULL, NULL, NULL, EEG_THREAD_PRIORITY, 0, 0);
 
 /*==============================================================================
  * Public Function Implementations
