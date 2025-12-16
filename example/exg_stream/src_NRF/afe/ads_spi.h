@@ -69,7 +69,7 @@ extern bool ads_initialized;
  *
  * @note Must be called before any other ADS functions
  */
-void init_SPI();
+void init_spi();
 
 /*==============================================================================
  * Function Declarations - Data Acquisition Control
@@ -82,7 +82,7 @@ void init_SPI();
  * data conversion and streaming. The devices are synchronized via the
  * shared START pin.
  */
-void ADS_Start();
+void ads_start();
 
 /**
  * @brief Stop data acquisition on both ADS1298 devices
@@ -90,7 +90,7 @@ void ADS_Start();
  * Sends SDATAC command to both devices to stop continuous data mode.
  * Sets skip_reads flag to discard initial samples after restart.
  */
-void ADS_Stop();
+void ads_stop();
 
 /**
  * @brief Clear the skip_reads flag and reset skipped sample counter
@@ -99,7 +99,7 @@ void ADS_Stop();
  * synchronized streaming) to prevent additional sample skipping
  * in process_ads_data().
  */
-void ADS_clear_skip_reads();
+void ads_clear_skip_reads();
 
 /**
  * @brief Initialize an ADS1298 device with specified parameters
@@ -146,14 +146,14 @@ void ads_check_id(enum ADS_id_t ads_id);
  *
  * @return 0 on success, negative error code on failure
  */
-int ADS_dr_init();
+int ads_dr_init();
 
 /**
  * @brief Read current state of DRDY pin
  *
  * @return 1 if data ready, 0 if not ready
  */
-int ADS_dr_read();
+int ads_dr_read();
 
 /**
  * @brief Process ADS1298 data when DRDY interrupt occurs

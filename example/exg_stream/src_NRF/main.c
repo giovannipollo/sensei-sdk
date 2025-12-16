@@ -102,10 +102,10 @@ int main(void) {
   LOG_INF("Enabling charge...");
   pwr_charge_enable();
   LOG_INF("Initializing ADS...");
-  ret = ADS_dr_init();
+  ret = ads_dr_init();
 
   LOG_INF("Initializing SPI...");
-  init_SPI();
+  init_spi();
 
   LOG_INF("Powering GAP9...");
   gap9_pwr(true);

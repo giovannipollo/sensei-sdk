@@ -423,7 +423,7 @@ static void spim_handler(nrfx_spim_evt_t const *p_event, void *p_context) {
  * @note This function must be called before any other ADS functions.
  *       Errors are logged but not returned to allow graceful degradation.
  */
-void init_SPI() {
+void init_spi() {
   nrfx_err_t status;
   (void)status;
 
@@ -695,7 +695,7 @@ static void cb_ads_a_dr(const struct device *dev, struct gpio_callback *cb, uint
  *
  * @return 1 if data ready (pin active low on ADS1298), 0 if not ready
  */
-int ADS_dr_read() { return gpio_pin_get_dt(&gpio_dt_ads1298_a_dr); }
+int ads_dr_read() { return gpio_pin_get_dt(&gpio_dt_ads1298_a_dr); }
 
 /**
  * @brief Initialize data ready (DRDY) GPIO interrupt
@@ -712,7 +712,7 @@ int ADS_dr_read() { return gpio_pin_get_dt(&gpio_dt_ads1298_a_dr); }
  *
  * @return 0 on success, -1 on error
  */
-int ADS_dr_init() {
+int ads_dr_init() {
   // Initialize the data ready pin
   if (!device_is_ready(gpio_dt_ads1298_a_dr.port)) {
     LOG_ERR("ADS1298 DRDY GPIO port not ready");
@@ -850,7 +850,7 @@ void ads_init(uint8_t *InitParams, enum ADS_id_t ads_id) {
  * @note Does not power down the device, just stops conversions
  * @note Both devices must be stopped for synchronized operation
  */
-void ADS_Stop() {
+void ads_stop() {
   skip_reads = true; // Flag to skip the fist samples as to make sure the signal is stable.
 
   pr_word[0] = _SDATAC;
@@ -877,7 +877,7 @@ void ADS_Stop() {
  * synchronized streaming) to prevent additional sample skipping
  * in process_ads_data().
  */
-void ADS_clear_skip_reads() {
+void ads_clear_skip_reads() {
   skip_reads = false;
   skiped_samples = 0;
 }
@@ -899,7 +899,7 @@ void ADS_clear_skip_reads() {
  * @note DRDY interrupts will begin firing once conversion starts
  * @note First 500 samples are skipped if skip_reads flag is set
  */
-void ADS_Start() {
+void ads_start() {
   pr_word[0] = _START;
   pr_word[1] = _RDATAC;
   spi_xfer_done = false;

@@ -64,7 +64,7 @@
  * GetConfigParam(...);        // Wait for BLE config
  * ads_init(...);              // Initialize hardware
  * sync_wait(SYNC_SUBSYSTEM_EXG, 5000);  // Wait at barrier
- * ADS_Start();                // Start after barrier releases
+ * ads_start();                // Start after barrier releases
  * ```
  *
  * ## Thread Safety
@@ -186,7 +186,7 @@ int sync_wait(sync_subsystem_t subsystem, uint32_t timeout_ms);
  * if (sync_is_active()) {
  *     sync_wait(SYNC_SUBSYSTEM_EXG, 5000);
  * }
- * ADS_Start();
+ * ads_start();
  * @endcode
  */
 bool sync_is_active(void);

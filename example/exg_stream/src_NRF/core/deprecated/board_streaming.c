@@ -61,7 +61,7 @@ uint8_t InitParams[5] = {2, 1, 0, 0, 0}; // SAMPLE RATE 1KSPS, CHANNEL FUNCTION 
 //     //   ads_init(InitParams, ADS1298_A); // Initialize ADS
 //     //   ads_init(InitParams, ADS1298_B); // Initialize ADS
 
-//     //   ADS_Start(); // Start ADS
+//     //   ads_start(); // Start ADS
 
 //     //   /* Wait for ADC settling before sync barrier (500 samples @ 1kSPS = 500ms)
 //     //    * This ensures EXG data starts at the same time as MIC after the barrier */
@@ -75,7 +75,7 @@ uint8_t InitParams[5] = {2, 1, 0, 0, 0}; // SAMPLE RATE 1KSPS, CHANNEL FUNCTION 
 //     //     }
 //     //   }
 
-//     //   ADS_clear_skip_reads(); // Clear the skip flag since we waited manually
+//     //   ads_clear_skip_reads(); // Clear the skip flag since we waited manually
 //     //   Set_ADS_Function(READ);
 //     //   first_run = false;
 
@@ -86,7 +86,7 @@ uint8_t InitParams[5] = {2, 1, 0, 0, 0}; // SAMPLE RATE 1KSPS, CHANNEL FUNCTION 
 //     //   ads_init(InitParams, ADS1298_A); // Initialize ADS
 //     //   ads_init(InitParams, ADS1298_B); // Initialize ADS
 
-//     //   ADS_Start(); // Start ADS
+//     //   ads_start(); // Start ADS
 
 //     //   /* Wait for ADC settling before sync barrier (500 samples @ 1kSPS = 500ms)
 //     //    * This ensures EXG data starts at the same time as MIC after the barrier */
@@ -100,7 +100,7 @@ uint8_t InitParams[5] = {2, 1, 0, 0, 0}; // SAMPLE RATE 1KSPS, CHANNEL FUNCTION 
 //     //     }
 //     //   }
 
-//     //   ADS_clear_skip_reads(); // Clear the skip flag since we waited manually
+//     //   ads_clear_skip_reads(); // Clear the skip flag since we waited manually
 //     //   Set_ADS_Function(READ);
 //     // }
 
@@ -109,7 +109,7 @@ uint8_t InitParams[5] = {2, 1, 0, 0, 0}; // SAMPLE RATE 1KSPS, CHANNEL FUNCTION 
 //   case STOP:
 //     // if (!first_run) {
 //     //   Set_ADS_Function(STILL);
-//     //   ADS_Stop();   // Stop ADS
+//     //   ads_stop();   // Stop ADS
 //     //   sync_reset(); // Reset sync state for next session
 //     //   k_msleep(100);
 //     // }

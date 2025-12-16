@@ -140,7 +140,7 @@ int eeg_start_streaming(void) {
     ads_init(init_params, ADS1298_B);
 
     LOG_INF("Starting ADS1298 data acquisition");
-    ADS_Start();
+    ads_start();
     LOG_INF("ADS1298 started");
 
     // Signal thread to begin
@@ -155,7 +155,7 @@ int eeg_start_streaming(void) {
     ads_init(init_params, ADS1298_A);
     ads_init(init_params, ADS1298_B);
     LOG_INF("Starting ADS1298 data acquisition");
-    ADS_Start();
+    ads_start();
     LOG_INF("ADS1298 started");
     // Signal thread to begin
     k_sem_give(&eeg_start_sem);
@@ -211,7 +211,7 @@ static void eeg_streaming_thread(void *arg1, void *arg2, void *arg3) {
     k_sem_take(&eeg_start_sem, K_FOREVER);
 
     LOG_INF("EEG streaming thread running");
-    ADS_clear_skip_reads();
+    ads_clear_skip_reads();
     Set_ADS_Function(READ);
     while (eeg_keep_running) {
       process_ads_data();
@@ -219,7 +219,7 @@ static void eeg_streaming_thread(void *arg1, void *arg2, void *arg3) {
     LOG_INF("EEG streaming thread stopping");
     Set_ADS_Function(STILL);
     LOG_INF("ADS set to STILL");
-    ADS_Stop(); // Stop ADS
+    ads_stop(); // Stop ADS
     LOG_INF("ADS stopped");
     k_msleep(100);
     eeg_state = EEG_STATE_IDLE;
