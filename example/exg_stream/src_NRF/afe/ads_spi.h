@@ -37,20 +37,10 @@
  * Global Variables
  *============================================================================*/
 
-/**
- * @brief SPI command/data buffer
- *
- * Used for constructing SPI transactions. First byte typically contains
- * the command, followed by register addresses and data.
- */
+/** @brief SPI command/data buffer */
 extern uint8_t pr_word[10];
 
-/**
- * @brief ADS1298 initialization status flag
- *
- * Set to true after both ADS1298 devices have been successfully initialized
- * and verified. Used to prevent data acquisition before initialization.
- */
+/** @brief ADS1298 initialization status flag */
 extern bool ads_initialized;
 
 /*==============================================================================

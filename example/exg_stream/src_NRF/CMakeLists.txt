@@ -38,7 +38,10 @@ target_sources(app PRIVATE
 
     # AFE (Analog Front-End - ADS1298)
     afe/ads_appl.c
-    afe/ads_spi.c
+    afe/ads_spi_hw.c
+    afe/ads_spi_comm.c
+    afe/ads_spi_config.c
+    afe/ads_spi_data.c
 
     # Sensors - IMU
     sensors/imu/imu_appl.c
