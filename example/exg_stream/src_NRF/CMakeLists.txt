@@ -60,6 +60,9 @@ target_sources(app PRIVATE
     # Sensors - EEG
     sensors/eeg/eeg_appl.c
 
+    # Sensors - EMG
+    sensors/emg/emg_appl.c
+
     # BLE
     ble/ble_appl.c
     ble/bluetooth.c
