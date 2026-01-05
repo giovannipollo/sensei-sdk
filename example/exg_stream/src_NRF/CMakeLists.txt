@@ -35,6 +35,7 @@ target_sources(app PRIVATE
 
     # BSP
     bsp/pwr_bsp.c
+    bsp/battery/battery.c
 
     # AFE (Analog Front-End - ADS1298)
     afe/ads_appl.c

@@ -34,6 +34,8 @@
 #include "sensors/mic/mic_appl.h"
 #include "core/sync_streaming.h"
 #include "sensors/eeg/eeg_appl.h"
+#include "bsp/battery/battery.h"
+
 
 #include <zephyr/logging/log.h>
 #include <zephyr/logging/log_ctrl.h>
