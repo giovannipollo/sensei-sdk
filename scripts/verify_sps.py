@@ -125,9 +125,9 @@ def detect_packet(buffer: bytes, mode: str, debug: bool = False) -> tuple[str, i
     """Returns (packet_type, packet_size, offset) or None."""
     
     # Define which packet types are enabled for each mode
-    eeg_enabled = mode in ("all", "eeg", "eeg-mic", "eeg-imu")
-    mic_enabled = mode in ("all", "mic", "eeg-mic", "mic-imu")
-    imu_enabled = mode in ("all", "imu", "eeg-imu", "mic-imu")
+    eeg_enabled = mode in ("all", "eeg", "eeg-mic", "eeg-imu", "combined")
+    mic_enabled = mode in ("all", "mic", "eeg-mic", "mic-imu", "combined")
+    imu_enabled = mode in ("all", "imu", "eeg-imu", "mic-imu", "combined")
     
     # Determine minimum buffer size needed based on enabled packet types
     min_sizes = []
@@ -312,7 +312,7 @@ def main():
     parser.add_argument("port", help="Serial port")
     parser.add_argument("--baud", type=int, default=2000000, help="Baud rate")
     parser.add_argument("--duration", type=float, default=5.0, help="Duration in seconds")
-    parser.add_argument("--mode", choices=["all", "eeg", "mic", "imu", "eeg-mic", "eeg-imu", "mic-imu"], default="all", help="Stream mode")
+    parser.add_argument("--mode", choices=["all", "eeg", "mic", "imu", "eeg-mic", "eeg-imu", "mic-imu", "combined"], default="all", help="Stream mode")
     parser.add_argument("--debug", action="store_true", help="Show packet sequence")
     parser.add_argument("--analyze", action="store_true", help="Analyze raw stream for overlaps")
     args = parser.parse_args()
@@ -324,6 +324,7 @@ def main():
     eeg_enabled = args.mode in ("all", "eeg", "eeg-mic", "eeg-imu")
     mic_enabled = args.mode in ("all", "mic", "eeg-mic", "mic-imu")
     imu_enabled = args.mode in ("all", "imu", "eeg-imu", "mic-imu")
+    combined_mode = args.mode == "combined"
 
     # Start streaming based on mode
     # Note: EEG startup takes ~500ms due to ADS1298 power-on and initialization
@@ -337,6 +338,9 @@ def main():
         time.sleep(0.2)
     if imu_enabled:
         ser.write(bytes([33]))  # Start IMU
+        time.sleep(0.2)
+    if combined_mode:
+        ser.write(bytes([31]))  # Start combined stream
         time.sleep(0.2)
 
     print(f"Collecting for {args.duration}s...\n")
@@ -401,10 +405,6 @@ def main():
         pass
     finally:
         # Stop streams based on mode
-        eeg_enabled = args.mode in ("all", "eeg", "eeg-mic", "eeg-imu")
-        mic_enabled = args.mode in ("all", "mic", "eeg-mic", "mic-imu")
-        imu_enabled = args.mode in ("all", "imu", "eeg-imu", "mic-imu")
-        
         if eeg_enabled:
             ser.write(bytes([19]))  # Stop EEG
             time.sleep(0.1)
@@ -414,14 +414,17 @@ def main():
         if imu_enabled:
             ser.write(bytes([34]))  # Stop IMU
             time.sleep(0.1)
+        if combined_mode:
+            ser.write(bytes([32]))  # Stop combined stream
+            time.sleep(0.1)
         ser.close()
 
     elapsed = time.time() - start_time
     
     # Define which streams are enabled based on mode
-    eeg_enabled = args.mode in ("all", "eeg", "eeg-mic", "eeg-imu")
-    mic_enabled = args.mode in ("all", "mic", "eeg-mic", "mic-imu")
-    imu_enabled = args.mode in ("all", "imu", "eeg-imu", "mic-imu")
+    eeg_enabled = args.mode in ("all", "eeg", "eeg-mic", "eeg-imu", "combined")
+    mic_enabled = args.mode in ("all", "mic", "eeg-mic", "mic-imu", "combined")
+    imu_enabled = args.mode in ("all", "imu", "eeg-imu", "mic-imu", "combined")
 
     print("=" * 40)
     print(f"Duration: {elapsed:.2f}s")
