@@ -69,7 +69,13 @@ static uint8_t eeg_tx_buf[EEG_PCKT_SIZE];
 static uint8_t eeg_buf_idx = 0;
 static uint8_t eeg_pkt_counter = 0;
 static uint8_t eeg_trigger_value = 0;
-uint8_t init_params[5] = {6, 0, 2, 4, 0}; // SAMPLE RATE 1KSPS, CHANNEL FUNCTION SHORT, NC, NC, GAIN = 6
+static eeg_config_t eeg_config = {
+    .sample_rate = 6,
+    .ads_mode = 0,
+    .channel_2_func = 2,
+    .channel_4_func = 4,
+    .gain = 0
+};
 static bool first_run = true;
 
 /*==============================================================================
@@ -137,8 +143,15 @@ int eeg_start_streaming(void) {
     ads_check_id(ADS1298_B);
 
     LOG_INF("Initializing ADS1298 devices with provided parameters");
-    ads_init(init_params, ADS1298_A);
-    ads_init(init_params, ADS1298_B);
+    uint8_t ads_params[5] = {
+        eeg_config.sample_rate,
+        eeg_config.ads_mode,
+        eeg_config.channel_2_func,
+        eeg_config.channel_4_func,
+        eeg_config.gain
+    };
+    ads_init(ads_params, ADS1298_A);
+    ads_init(ads_params, ADS1298_B);
 
     LOG_INF("Starting ADS1298 data acquisition");
     ads_start();
@@ -153,8 +166,15 @@ int eeg_start_streaming(void) {
 
   } else {
     LOG_INF("Re-initializing ADS1298 devices with provided parameters");
-    ads_init(init_params, ADS1298_A);
-    ads_init(init_params, ADS1298_B);
+    uint8_t ads_params[5] = {
+        eeg_config.sample_rate,
+        eeg_config.ads_mode,
+        eeg_config.channel_2_func,
+        eeg_config.channel_4_func,
+        eeg_config.gain
+    };
+    ads_init(ads_params, ADS1298_A);
+    ads_init(ads_params, ADS1298_B);
     LOG_INF("Starting ADS1298 data acquisition");
     ads_start();
     LOG_INF("ADS1298 started");
@@ -195,6 +215,18 @@ void eeg_set_trigger(uint8_t value) {
 }
 
 uint8_t eeg_get_trigger(void) { return eeg_trigger_value; }
+
+int eeg_set_config(const eeg_config_t *config) {
+  if (!config) return -1;
+  memcpy(&eeg_config, config, sizeof(eeg_config_t));
+  return 0;
+}
+
+int eeg_get_config(eeg_config_t *config) {
+  if (!config) return -1;
+  memcpy(config, &eeg_config, sizeof(eeg_config_t));
+  return 0;
+}
 
 /*==============================================================================
  * Static Function Implementations

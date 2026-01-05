@@ -60,7 +60,6 @@ K_MSGQ_DEFINE(receive_msgq, BLE_PCKT_RECEIVE_SIZE, RECEIVE_QUEUE_SIZE, 1);
 BLE_nus_data ble_data_available;
 
 uint8_t WaitingForConfig = 0;
-uint8_t ConfigParams[5] = {6, 0, 2, 4, 96}; // [SAMPLE_RATE ADS_MODE 2 4 GAIN]
 
 int8_t biowolf_current_state = STATE_STREAMING_NORDIC;
 uint8_t bat_data[7];
@@ -109,11 +108,14 @@ void ble_send_thread(void *arg1, void *arg2, void *arg3) {
  */
 static void handle_config_reception(void) {
   LOG_INF("Config received");
-  ConfigParams[0] = ble_data_available.data[0];
-  ConfigParams[1] = ble_data_available.data[1];
-  ConfigParams[2] = ble_data_available.data[2];
-  ConfigParams[3] = ble_data_available.data[3];
-  ConfigParams[4] = ble_data_available.data[4];
+  eeg_config_t config = {
+    .sample_rate = ble_data_available.data[0],
+    .ads_mode = ble_data_available.data[1],
+    .channel_2_func = ble_data_available.data[2],
+    .channel_4_func = ble_data_available.data[3],
+    .gain = ble_data_available.data[4]
+  };
+  eeg_set_config(&config);
   WaitingForConfig = 0;
   k_sem_give(&config_received_sem);
 }
@@ -351,9 +353,17 @@ uint32_t GetConfigParam(uint8_t *InitParams) {
   }
 
   LOG_INF("Configuration parameters received from BLE.");
+  eeg_config_t config;
+  eeg_get_config(&config);
+  
+  InitParams[0] = config.sample_rate;
+  InitParams[1] = config.ads_mode;
+  InitParams[2] = config.channel_2_func;
+  InitParams[3] = config.channel_4_func;
+  InitParams[4] = config.gain;
+  
   for (int i = 0; i < 5; i++) {
-    LOG_INF("ConfigParams[%d]: %d", i, ConfigParams[i]);
-    InitParams[i] = ConfigParams[i];
+    LOG_INF("ConfigParam[%d]: %d", i, InitParams[i]);
   }
   return 0;
 }

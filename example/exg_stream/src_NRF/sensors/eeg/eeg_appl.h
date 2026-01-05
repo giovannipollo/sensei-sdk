@@ -109,6 +109,20 @@ typedef enum {
   EEG_STATE_ERROR      /**< Error state */
 } eeg_state_t;
 
+/**
+ * @struct eeg_config_t
+ * @brief EEG configuration parameters
+ * 
+ * Configuration array format: [sample_rate, ads_mode, channel_2_func, channel_4_func, gain]
+ */
+typedef struct {
+  uint8_t sample_rate;     /**< ADS1298 sample rate index */
+  uint8_t ads_mode;        /**< ADS1298 power mode */
+  uint8_t channel_2_func;  /**< ADS1298 channel 2 function */
+  uint8_t channel_4_func;  /**< ADS1298 channel 4 function */
+  uint8_t gain;            /**< ADS1298 gain setting */
+} eeg_config_t;
+
 /*==============================================================================
  * Function Declarations
  *============================================================================*/
@@ -181,5 +195,26 @@ void eeg_set_trigger(uint8_t value);
  * @return Current trigger value (0x00-0xFF)
  */
 uint8_t eeg_get_trigger(void);
+
+/**
+ * @brief Set the EEG configuration
+ *
+ * Updates the EEG configuration parameters. Configuration will be applied
+ * on the next call to eeg_start_streaming().
+ *
+ * @param config Pointer to the configuration structure
+ * @return 0 on success, negative error code on failure
+ */
+int eeg_set_config(const eeg_config_t *config);
+
+/**
+ * @brief Get the current EEG configuration
+ *
+ * Retrieves the current EEG configuration parameters.
+ *
+ * @param config Pointer to the structure to fill with current config
+ * @return 0 on success, negative error code on failure
+ */
+int eeg_get_config(eeg_config_t *config);
 
 #endif // EEG_APPL_H
