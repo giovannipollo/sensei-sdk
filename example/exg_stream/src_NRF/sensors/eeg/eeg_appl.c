@@ -49,6 +49,7 @@
 // Include BLE application header for packet transmission
 #include "ble/ble_appl.h"
 #include "bsp/pwr_bsp.h"
+#include "bsp/power/power.h"
 
 // Include sync streaming for synchronized start/stop
 #include "core/sync_streaming.h"

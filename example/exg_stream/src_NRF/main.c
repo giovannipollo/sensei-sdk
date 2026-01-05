@@ -45,6 +45,7 @@
 #include "bsp/pwr_bsp.h"
 #include "pwr/pwr.h"
 #include "pwr/pwr_common.h"
+#include "max77654.h"
 
 #include "afe/ads_spi.h"
 #include "ble/ble_appl.h"

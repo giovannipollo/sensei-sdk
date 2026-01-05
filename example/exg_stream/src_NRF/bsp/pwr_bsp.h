@@ -45,12 +45,6 @@ int pwr_bsp_init();
 int pwr_bsp_start();
 int pwr_charge_enable();
 
-int pwr_ads_on_unipolar();
-int pwr_ads_off();
-
-int pwr_ads_on_bipolar();
-
 extern bool flag_isr_soft_reset;
 
 #endif /* PWR_BSP_H_ */
-

@@ -27,6 +27,7 @@
  */
 
 #include "bsp/pwr_bsp.h"
+#include "bsp/power/power.h"
 #include "pwr/pwr_common.h"
 
 #include <zephyr/drivers/gpio.h>
@@ -45,51 +46,24 @@
 
 LOG_MODULE_REGISTER(pwr_bsp, LOG_LEVEL_INF);
 
-
-/* Define stack sizes and priorities */
-#define BAT_UPDATE_STACK_SIZE    1024
-#define BAT_UPDATE_PRIORITY      6
-
-
 static const struct device *pwr_i2c = DEVICE_DT_GET(DT_ALIAS(i2ca));
 
 // Store soft reset flag
 bool flag_isr_soft_reset = 0;
 
-/* The devicetree node identifier */
-#define GPIO_NODE_scd41_pwr DT_NODELABEL(gpio_scd41_pwr)
-#define GPIO_NODE_sgp41_pwr DT_NODELABEL(gpio_sgp41_pwr)
-
-#define GPIO_NODE_i2c_sgp41_en DT_NODELABEL(gpio_ext_i2c_sgp41_en)
-#define GPIO_NODE_i2c_as7331_en DT_NODELABEL(gpio_ext_i2c_as7331_en)
-#define GPIO_NODE_i2c_scd41_en DT_NODELABEL(gpio_ext_i2c_scd41_en)
-#define GPIO_NODE_hm0360_clk_en DT_NODELABEL(gpio_ext_hm0360_clk_en)
-
+/* GAP9 I2C bus control GPIO */
 #define GPIO_NODE_gap9_i2c_ctrl DT_NODELABEL(gpio_gap9_i2c_ctrl)
+static const struct gpio_dt_spec gpio_p0_6_gap9_i2c_ctrl = GPIO_DT_SPEC_GET(GPIO_NODE_gap9_i2c_ctrl, gpios);
 
-#define GPIO_NODE_ads1298_pwr DT_NODELABEL(gpio_ads1298_pwr)
-
+/* Soft reset button GPIO */
 #define BUTTON_SOFT_RST_INT_NODE DT_NODELABEL(gpio_soft_rst)
 static const struct gpio_dt_spec soft_rst_int_gpio = GPIO_DT_SPEC_GET(BUTTON_SOFT_RST_INT_NODE, gpios);
 static struct gpio_callback soft_rst_cb_data;
 
-static const struct gpio_dt_spec gpio_p0_6_gap9_i2c_ctrl = GPIO_DT_SPEC_GET(GPIO_NODE_gap9_i2c_ctrl, gpios);
-
-static const struct gpio_dt_spec gpio_p0_31_ads1298_pwr = GPIO_DT_SPEC_GET(GPIO_NODE_ads1298_pwr, gpios);
-
-
-void soft_rst_irq_callback(const struct device *dev,
-  struct gpio_callback *cb,
-  uint32_t pins)
+void soft_rst_irq_callback(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
-
   flag_isr_soft_reset = 1;
-
 }
-
-
-// ======== Functions ==============================================================================
-
 
 int pwr_bsp_init() {
   // Configure soft reset button
@@ -108,7 +82,6 @@ int pwr_bsp_init() {
   gpio_init_callback(&soft_rst_cb_data, soft_rst_irq_callback, BIT(soft_rst_int_gpio.pin));
   gpio_add_callback(soft_rst_int_gpio.port, &soft_rst_cb_data);
 
-  
   // Configure GAP9 I2C bus control pin
   if (gpio_pin_configure_dt(&gpio_p0_6_gap9_i2c_ctrl, GPIO_OUTPUT_INACTIVE) < 0) {
     LOG_ERR("GAP9 I2C GPIO init error");
@@ -120,19 +93,12 @@ int pwr_bsp_init() {
     return -1;
   }
 
-  // Enable ADS1298 power
-  if (!device_is_ready(gpio_p0_31_ads1298_pwr.port)) {
-      LOG_ERR("ADS1298 power GPIO port not ready");
-      return -1;
-  }
-  // Configure GAP9 I2C bus control pin
-  if (gpio_pin_configure_dt(&gpio_p0_31_ads1298_pwr, GPIO_OUTPUT_INACTIVE) < 0) {
-    LOG_ERR("ADS pwr GPIO init error");
-    return 0;
+  // Initialize power subsystem
+  if (power_init() < 0) {
+    LOG_ERR("Power subsystem init error");
+    return -1;
   }
 
-
-  
   return 0;
 }
 
@@ -183,11 +149,7 @@ int pwr_bsp_start() {
   pmic_conf->ldo_conf[0].en = MAX77654_REG_ON;
   pmic_conf->ldo_conf[0].output_voltage_mV = 3300;
 
-
   max77654_config(&pmic_h);
-
-
- 
 
   // Power up GAP9 and connect to I2C bus
   gap9_pwr(true);
@@ -198,109 +160,6 @@ int pwr_bsp_start() {
     return -1;
   }
   LOG_INF("GAP9 connected to I2C bus");
-
-  return 0;
-}
-
-
-int pwr_ads_off() {
-  // Configure PMIC
-  struct max77654_conf *pmic_conf = &pmic_h.conf;
-
-
-  // Disable ADS1298 power
-  if (gpio_pin_set_dt(&gpio_p0_31_ads1298_pwr, 0) < 0) {
-      LOG_ERR("ADS1298 power GPIO clear error");
-      return -1;
-  }
-
-  // Switch on VA1, set to 3.0V for unipolar configuration
-  pmic_conf->ldo_conf[1].mode = MAX77654_LDO_MODE_LDO;
-  pmic_conf->ldo_conf[1].active_discharge = true;
-  pmic_conf->ldo_conf[1].en = MAX77654_REG_OFF;
-  pmic_conf->ldo_conf[1].output_voltage_mV = 0;
-
-  max77654_config(&pmic_h);
-
-  return 0;
-}
-
-int pwr_ads_on_unipolar() {
-  // Configure PMIC
-  struct max77654_conf *pmic_conf = &pmic_h.conf;
-
-
-
-  // Enable ADS1298 power
-  if (gpio_pin_set_dt(&gpio_p0_31_ads1298_pwr, 1) < 0) {  // Set pin high to enable
-      LOG_ERR("ADS1298 power GPIO set error");
-      return -1;
-  }
-
-  // Switch on VA1, set to 3.0V for unipolar configuration
-  pmic_conf->ldo_conf[1].mode = MAX77654_LDO_MODE_LDO;
-  pmic_conf->ldo_conf[1].active_discharge = false;
-  pmic_conf->ldo_conf[1].en = MAX77654_REG_ON;
-  pmic_conf->ldo_conf[1].output_voltage_mV = 3000;
-
-  max77654_config(&pmic_h);
-
-  return 0;
-}
-
-
-
-int pwr_ads_on_bipolar() {
-  // Configure PMIC
-  struct max77654_conf *pmic_conf = &pmic_h.conf;
-
-
-  
-
-  // Enable ADS1298 power
-  if (gpio_pin_set_dt(&gpio_p0_31_ads1298_pwr, 1) < 0) {  // Set pin high to enable
-      LOG_ERR("ADS1298 power GPIO set error");
-      return -1;
-  }
-
-/*
-  // Disable ADS1298 power
-  if (gpio_pin_set_dt(&gpio_p0_31_ads1298_pwr, 0) < 0) {
-      LOG_ERR("ADS1298 power GPIO clear error");
-      return -1;
-  }
-
-*/
-  // Switch on VA1, set to 3.0V for unipolar configuration
-  pmic_conf->ldo_conf[1].mode = MAX77654_LDO_MODE_LDO;
-  pmic_conf->ldo_conf[1].active_discharge = true;
-  pmic_conf->ldo_conf[1].en = MAX77654_REG_OFF;
-  pmic_conf->ldo_conf[1].output_voltage_mV = 1500;
-
-
-  pmic_conf->sbb_conf[1].mode = MAX77654_SBB_MODE_BUCKBOOST;
-  pmic_conf->sbb_conf[1].peak_current = MAX77654_SBB_PEAK_CURRENT_1A;
-  pmic_conf->sbb_conf[1].active_discharge = true;
-  pmic_conf->sbb_conf[1].en = MAX77654_REG_OFF;
-  pmic_conf->sbb_conf[1].output_voltage_mV = 1800;
-
-  max77654_config(&pmic_h);
-
-  // Switch on VA1, set to 3.0V for unipolar configuration
-  pmic_conf->ldo_conf[1].mode = MAX77654_LDO_MODE_LDO;
-  pmic_conf->ldo_conf[1].active_discharge = false;
-  pmic_conf->ldo_conf[1].en = MAX77654_REG_ON;
-  pmic_conf->ldo_conf[1].output_voltage_mV = 1500;
-
-
-  pmic_conf->sbb_conf[1].mode = MAX77654_SBB_MODE_BUCKBOOST;
-  pmic_conf->sbb_conf[1].peak_current = MAX77654_SBB_PEAK_CURRENT_1A;
-  pmic_conf->sbb_conf[1].active_discharge = false;
-  pmic_conf->sbb_conf[1].en = MAX77654_REG_ON;
-  pmic_conf->sbb_conf[1].output_voltage_mV = 2700;
-
-  max77654_config(&pmic_h);
-
 
   return 0;
 }
