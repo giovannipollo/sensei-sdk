@@ -218,7 +218,7 @@ static void handle_ble_command(uint8_t cmd) {
 
   case SET_TRIGGER_STATE:
     LOG_DBG("Ping SET_TRIGGER_STATE");
-    set_trigger(ble_data_available.data[1]);
+    eeg_set_trigger(ble_data_available.data[1]);
     break;
 
   case ENTER_BOOTLOADERT_MODE:
