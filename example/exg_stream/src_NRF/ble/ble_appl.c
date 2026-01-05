@@ -59,8 +59,6 @@ K_MSGQ_DEFINE(receive_msgq, BLE_PCKT_RECEIVE_SIZE, RECEIVE_QUEUE_SIZE, 1);
 
 BLE_nus_data ble_data_available;
 
-uint8_t WaitingForConfig = 0;
-
 int8_t biowolf_current_state = STATE_STREAMING_NORDIC;
 uint8_t bat_data[7];
 
@@ -116,7 +114,6 @@ static void handle_config_reception(void) {
     .gain = ble_data_available.data[4]
   };
   eeg_set_config(&config);
-  WaitingForConfig = 0;
   k_sem_give(&config_received_sem);
 }
 
@@ -254,17 +251,14 @@ static void handle_ble_command(uint8_t cmd) {
   case START_COMBINED_STREAMING:
     LOG_DBG("Ping START_COMBINED_STREAMING");
     ble_reset_packet_counters(); /* Reset packet counters for new session */
-    // set_SM_state(S_NORDIC_STREAM);
-    sync_begin(2); /* Setup sync barrier for 2 subsystems (EXG + MIC) */
+    sync_begin(2); /* Setup sync barrier for 2 subsystems (EEG + MIC) */
     mic_start_streaming();
-    WaitingForConfig = 1;
-    Set_ADS_Function(START);
+    eeg_start_streaming();
     break;
   case STOP_COMBINED_STREAMING:
     LOG_DBG("Ping STOP_COMBINED_STREAMING");
-    // set_SM_state(S_LOW_POWER_CONNECTED);
     mic_stop_streaming();
-    Set_ADS_Function(STOP);
+    eeg_stop_streaming();
     ble_print_packet_stats(); /* Print BLE packet stats */
     sync_reset();       /* Clean up sync state */
     ResetConfigState(); /* Reset config state for next session */
@@ -289,7 +283,6 @@ static void handle_ble_command(uint8_t cmd) {
  * on a semaphore for incoming data and handles it based on the current
  * board state:
  * - STATE_PROGRAM_WOLF: Data is ignored (reserved for future DFU support)
- * - WaitingForConfig: Data is treated as configuration parameters
  * - STATE_GAP9_MASTER: Data is forwarded to GAP9 via UART
  * - Otherwise: Data is processed as a BLE command
  *
@@ -373,10 +366,8 @@ uint32_t GetConfigParam(uint8_t *InitParams) {
  *
  * Resets the configuration reception state. Should be called when
  * stopping streaming to ensure clean state for next session.
- * Clears WaitingForConfig flag and resets the semaphore.
  */
 void ResetConfigState(void) {
-  WaitingForConfig = 0;
   k_sem_reset(&config_received_sem);
 }
 

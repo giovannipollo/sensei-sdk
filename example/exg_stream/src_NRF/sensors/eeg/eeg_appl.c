@@ -141,49 +141,22 @@ int eeg_start_streaming(void) {
     LOG_INF("Checking ADS1298 device IDs");
     ads_check_id(ADS1298_A);
     ads_check_id(ADS1298_B);
-
-    LOG_INF("Initializing ADS1298 devices with provided parameters");
-    uint8_t ads_params[5] = {
-        eeg_config.sample_rate,
-        eeg_config.ads_mode,
-        eeg_config.channel_2_func,
-        eeg_config.channel_4_func,
-        eeg_config.gain
-    };
-    ads_init(ads_params, ADS1298_A);
-    ads_init(ads_params, ADS1298_B);
-
-    LOG_INF("Starting ADS1298 data acquisition");
-    ads_start();
-    LOG_INF("ADS1298 started");
-
-    // Signal thread to begin
-    k_sem_give(&eeg_start_sem);
-    LOG_INF("Signaled EEG streaming thread to start");
-
-    eeg_state = EEG_STATE_STREAMING;
-    LOG_INF("EEG streaming started");
-
-  } else {
-    LOG_INF("Re-initializing ADS1298 devices with provided parameters");
-    uint8_t ads_params[5] = {
-        eeg_config.sample_rate,
-        eeg_config.ads_mode,
-        eeg_config.channel_2_func,
-        eeg_config.channel_4_func,
-        eeg_config.gain
-    };
-    ads_init(ads_params, ADS1298_A);
-    ads_init(ads_params, ADS1298_B);
-    LOG_INF("Starting ADS1298 data acquisition");
-    ads_start();
-    LOG_INF("ADS1298 started");
-    // Signal thread to begin
-    k_sem_give(&eeg_start_sem);
-    LOG_INF("Signaled EEG streaming thread to start");
-    eeg_state = EEG_STATE_STREAMING;
-    LOG_INF("EEG streaming started");
   }
+
+  LOG_INF("Initializing ADS1298 devices with provided parameters");
+  uint8_t ads_params[5] = {
+      eeg_config.sample_rate,
+      eeg_config.ads_mode,
+      eeg_config.channel_2_func,
+      eeg_config.channel_4_func,
+      eeg_config.gain
+  };
+  ads_init(ads_params, ADS1298_A);
+  ads_init(ads_params, ADS1298_B);
+
+  /* Signal thread to complete startup (sync barrier + ads_start) */
+  k_sem_give(&eeg_start_sem);
+  LOG_INF("Signaled EEG streaming thread to start");
 
   return 0;
 }
@@ -237,22 +210,45 @@ static void eeg_streaming_thread(void *arg1, void *arg2, void *arg3) {
   ARG_UNUSED(arg2);
   ARG_UNUSED(arg3);
 
+  int ret;
+
   LOG_INF("EEG streaming thread started");
 
   while (1) {
-    // Wait for start signal
+    /* Wait for start signal from eeg_start_streaming() */
     k_sem_take(&eeg_start_sem, K_FOREVER);
 
     LOG_INF("EEG streaming thread running");
+
+    /* Wait at sync barrier if synchronized streaming is active */
+    if (sync_is_active()) {
+      LOG_INF("EEG ready, waiting at sync barrier...");
+      ret = sync_wait(SYNC_SUBSYSTEM_EXG, 5000);
+      if (ret != 0) {
+        LOG_ERR("Sync wait failed: %d", ret);
+        eeg_state = EEG_STATE_ERROR;
+        pwr_ads_off();
+        continue;
+      }
+    }
+
+    /* Start ADS1298 data acquisition AFTER sync barrier */
+    LOG_INF("Starting ADS1298 data acquisition");
+    ads_start();
+    LOG_INF("ADS1298 started");
+
+    eeg_state = EEG_STATE_STREAMING;
     ads_clear_skip_reads();
     Set_ADS_Function(READ);
+
     while (eeg_keep_running) {
       process_ads_data();
     }
+
     LOG_INF("EEG streaming thread stopping");
     Set_ADS_Function(STILL);
     LOG_INF("ADS set to STILL");
-    ads_stop(); // Stop ADS
+    ads_stop();
     LOG_INF("ADS stopped");
     k_msleep(100);
     eeg_state = EEG_STATE_IDLE;

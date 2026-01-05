@@ -105,6 +105,7 @@ void sync_init(void) {
 void sync_begin(uint8_t num_subsystems) {
   /* Clamp to maximum supported subsystems */
   if (num_subsystems > SYNC_SUBSYSTEM_COUNT) {
+    LOG_ERR("sync_begin: num_subsystems %d exceeds max %d, clamping", num_subsystems, SYNC_SUBSYSTEM_COUNT);
     num_subsystems = SYNC_SUBSYSTEM_COUNT;
   }
 
