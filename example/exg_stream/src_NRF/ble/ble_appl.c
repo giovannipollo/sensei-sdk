@@ -35,6 +35,7 @@
 #include "core/sync_streaming.h"
 #include "sensors/eeg/eeg_appl.h"
 #include "bsp/battery/battery.h"
+#include "bsp/system_status/system_status.h"
 
 
 #include <zephyr/logging/log.h>
@@ -144,20 +145,12 @@ static void handle_ble_command(uint8_t cmd) {
   switch (cmd) {
   case REQUEST_BATTERY_STATE:
     LOG_DBG("Ping REQUEST_BATTERY_STATE");
-    bat_data[0] = REQUEST_BATTERY_STATE;
-    bat_data[1] = bsp_is_charging();
-    bat_data[2] = 0;
-    bat_data[3] = (uint8_t)bsp_get_total_power_mw();
-    bat_data[4] = (uint8_t)bsp_get_battery_soc();
-    bat_data[5] = (uint8_t)bsp_get_battery_voltage();
-    /* Get temperature from IMU sensor if available */
-    float temp_celsius = 0.0f;
-    if (imu_read_temperature(&temp_celsius) == 0) {
-      bat_data[6] = (uint8_t)temp_celsius;
+    size_t out_len = 0;
+    if (system_status_build_ble_packet(bat_data, sizeof(bat_data), &out_len) == 0) {
+      send_data_ble(bat_data, (uint16_t)out_len);
     } else {
-      bat_data[6] = 0;
+      LOG_ERR("Failed to build battery status packet");
     }
-    send_data_ble(bat_data, 7);
     break;
 
   case GET_DEVICE_SETTINGS:
