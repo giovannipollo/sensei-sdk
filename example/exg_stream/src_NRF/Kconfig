@@ -59,18 +59,48 @@ config STATE_MACHINE_USE_CPU_IDLE
 
 endmenu
 
-menu "ExG Streaming Configuration"
+menu "Multi-Board Sync Configuration"
 
-config ADS_USE_BIPOLAR_MODE
-	bool "Use bipolar mode for ADS (ExG shield)"
-	default n
+choice BOARD_SYNC_ROLE
+	prompt "Board synchronization role"
+	default BOARD_SYNC_ROLE_STANDALONE
 	help
-	  If enabled, the ADS (Analog-to-Digital Sensor) will be powered on in
-	  bipolar mode when entering the S_NORDIC_STREAM state. If disabled,
-	  unipolar mode is used. The choice depends on the ExG shield hardware
-	  configuration and the type of biopotential signals being measured.
-	  
-	  - Bipolar mode (EMG): Differential measurement between two electrodes
-	  - Unipolar mode (EEG): Single-ended measurement referenced to ground
+	  Select the role of this board in multi-board synchronization.
+	  PRIMARY generates sync pulses, SECONDARY waits for them.
+
+config BOARD_SYNC_ROLE_STANDALONE
+	bool "Standalone (no inter-board sync)"
+	help
+	  Board operates independently without cross-board synchronization.
+
+config BOARD_SYNC_ROLE_PRIMARY
+	bool "Primary (sync master)"
+	help
+	  Board generates sync pulses. Starts acquisition immediately and
+	  asserts GPIO trigger line for secondary boards.
+
+config BOARD_SYNC_ROLE_SECONDARY
+	bool "Secondary (sync follower)"
+	help
+	  Board waits for sync pulse from primary before starting acquisition.
+	  Configures GPIO as input with interrupt.
+
+endchoice
+
+config BOARD_ID
+	int "Unique board identifier (1-255)"
+	default 1
+	help
+	  Unique identifier for this board. Embedded in packet metadata
+	  to distinguish data sources during post-processing.
+	  Recommended: Board A (EEG) = 1, Board B (EMG) = 2.
+
+config BOARD_SYNC_PERIODIC_MS
+	int "Periodic sync pulse interval (ms)"
+	default 1000
+	depends on BOARD_SYNC_ROLE_PRIMARY
+	help
+	  Interval in milliseconds between periodic sync pulses.
+	  Used for post-hoc drift correction. Set to 0 to disable.
 
 endmenu

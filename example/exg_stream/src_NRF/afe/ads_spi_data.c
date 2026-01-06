@@ -45,6 +45,9 @@
 #include "ble/ble_appl.h"
 #include "sensors/ppg/ppg_appl.h"
 
+/* Inter-board synchronization */
+#include "core/board_sync.h"
+
 LOG_MODULE_REGISTER(ads_spi_data, LOG_LEVEL_INF);
 
 /*==============================================================================
@@ -261,9 +264,9 @@ void ads_spim_handler_done(void) {
         // Get the index to write metadata
         int buf_current_size = EEG_SAMPLE_DATA_END;
 
-        // Metadata bytes (3 bytes reserved for future use)
-        ble_tx_buf[buf_current_size++] = 0x00;
-        ble_tx_buf[buf_current_size++] = 0x00;
+        // Metadata bytes: board_id, sync_pulse_count, reserved
+        ble_tx_buf[buf_current_size++] = board_sync_get_board_id();
+        ble_tx_buf[buf_current_size++] = board_sync_get_pulse_count();
         ble_tx_buf[buf_current_size++] = 0x00;
 
         // BLE PCK tail

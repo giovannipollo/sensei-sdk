@@ -53,6 +53,9 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/atomic.h>
 
+/* Inter-board synchronization */
+#include "core/board_sync.h"
+
 LOG_MODULE_REGISTER(sync_streaming, LOG_LEVEL_DBG);
 
 /*==============================================================================
@@ -148,7 +151,28 @@ int sync_wait(sync_subsystem_t subsystem, uint32_t timeout_ms) {
    * If so, we don't wait - instead we release everyone else.
    */
   if (count >= sync_target_count) {
-    LOG_INF("All %d subsystems ready - GO!", sync_target_count);
+    LOG_INF("All %d subsystems ready - preparing cross-board sync", sync_target_count);
+
+    /*
+     * INTER-BOARD SYNCHRONIZATION
+     * Now that all LOCAL subsystems are ready, coordinate with the other board.
+     * - SECONDARY: Wait for sync signal from PRIMARY
+     * - PRIMARY: Assert sync signal to release SECONDARY
+     */
+#if defined(CONFIG_BOARD_SYNC_ROLE_SECONDARY)
+    LOG_INF("SECONDARY: Waiting for inter-board sync from PRIMARY...");
+    int sync_ret = board_sync_wait(10000);
+    if (sync_ret != 0) {
+      LOG_ERR("Inter-board sync timeout - releasing anyway");
+    }
+#endif
+
+#if defined(CONFIG_BOARD_SYNC_ROLE_PRIMARY)
+    board_sync_assert();
+    LOG_INF("PRIMARY: Sync signal asserted");
+#endif
+
+    LOG_INF("GO! Releasing all subsystems");
 
     /*
      * Release all waiting subsystems.
@@ -200,6 +224,15 @@ void sync_reset(void) {
    * Order matters: reset semaphore last to avoid race conditions
    * where a thread might try to take it during reset.
    */
+
+  /*
+   * INTER-BOARD SYNC CLEANUP
+   * Deassert the sync line when session ends (PRIMARY only).
+   */
+#if defined(CONFIG_BOARD_SYNC_ROLE_PRIMARY)
+  board_sync_deassert();
+#endif
+
   sync_target_count = 0;
   atomic_set(&sync_ready_count, 0);
   atomic_set(&sync_ready_mask, 0);

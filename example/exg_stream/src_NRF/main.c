@@ -54,6 +54,9 @@
 #include "sensors/mic/mic_appl.h"
 #include "sensors/eeg/eeg_appl.h"
 
+// Inter-board hardware synchronization
+#include "core/board_sync.h"
+
 static const struct device *const uart_dev = DEVICE_DT_GET_ONE(zephyr_cdc_acm_uart);
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
@@ -142,6 +145,13 @@ int main(void) {
     LOG_INF("EEG subsystem initialized");
   }
 
+  // Initialize inter-board synchronization
+  LOG_INF("Initializing board sync...");
+  if (board_sync_init() != 0) {
+    LOG_WRN("Board sync initialization failed - inter-board sync disabled");
+  } else {
+    LOG_INF("Board sync initialized");
+  }
 
   while (1) {
     k_msleep(1000); // Main thread can sleep now, all the work is handeled by other threads

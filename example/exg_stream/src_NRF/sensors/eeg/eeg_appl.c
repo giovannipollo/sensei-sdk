@@ -54,6 +54,9 @@
 // Include sync streaming for synchronized start/stop
 #include "core/sync_streaming.h"
 
+// Include inter-board hardware synchronization
+#include "core/board_sync.h"
+
 LOG_MODULE_REGISTER(eeg_appl, LOG_LEVEL_INF);
 
 #define EEG_THREAD_STACK_SIZE 2048
@@ -220,7 +223,12 @@ static void eeg_streaming_thread(void *arg1, void *arg2, void *arg3) {
 
     LOG_INF("EEG streaming thread running");
 
-    /* Wait at sync barrier if synchronized streaming is active */
+    /*
+     * SYNC BARRIER (waits for all local subsystems + inter-board sync)
+     * The barrier in sync_streaming.c handles both:
+     * - Intra-board sync (waits for MIC if combined streaming)
+     * - Inter-board sync (GPIO coordination between PRIMARY/SECONDARY)
+     */
     if (sync_is_active()) {
       LOG_INF("EEG ready, waiting at sync barrier...");
       ret = sync_wait(SYNC_SUBSYSTEM_EXG, 5000);
@@ -232,7 +240,7 @@ static void eeg_streaming_thread(void *arg1, void *arg2, void *arg3) {
       }
     }
 
-    /* Start ADS1298 data acquisition AFTER sync barrier */
+    /* === SYNCHRONIZED START POINT === */
     LOG_INF("Starting ADS1298 data acquisition");
     ads_start();
     LOG_INF("ADS1298 started");
@@ -250,6 +258,7 @@ static void eeg_streaming_thread(void *arg1, void *arg2, void *arg3) {
     LOG_INF("ADS set to STILL");
     ads_stop();
     LOG_INF("ADS stopped");
+
     k_msleep(100);
     eeg_state = EEG_STATE_IDLE;
     LOG_INF("EEG state set to IDLE");
