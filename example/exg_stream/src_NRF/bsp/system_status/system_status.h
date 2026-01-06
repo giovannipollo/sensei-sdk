@@ -36,4 +36,43 @@ int system_status_init(void);
  */
 int system_status_build_ble_packet(uint8_t *buffer, size_t buf_size, size_t *out_len);
 
+/*==============================================================================
+ * Device Information Functions
+ *============================================================================*/
+
+/**
+ * @brief Send hardware version over BLE.
+ * 
+ * Packet format: [REQUEST_HARDWARE_VERSION, HARDWARE_VERSION, HARDWARE_REVISION, BLE_PCK_TAILER]
+ */
+void system_status_send_hardware_version(void);
+
+/**
+ * @brief Send firmware version over BLE.
+ * 
+ * Packet format: [REQUEST_FIRMWARE_VERSION, FIRMWARE_VERSION, FIRMWARE_REVISION, BLE_PCK_TAILER]
+ */
+void system_status_send_firmware_version(void);
+
+/**
+ * @brief Send available sensors over BLE.
+ * 
+ * Packet format: [REQUEST_AVAILABLE_SENSORS, available_flag, reserved, BLE_PCK_TAILER]
+ */
+void system_status_send_available_sensors(void);
+
+/**
+ * @brief Send device settings over BLE.
+ * 
+ * Currently not implemented.
+ */
+void system_status_send_device_settings(void);
+
+/**
+ * @brief Send ready/connection confirmation string over BLE.
+ * 
+ * Sends "BWF16" to confirm successful connection to the client.
+ */
+void system_status_send_ready(void);
+
 #endif /* SYSTEM_STATUS_H_ */

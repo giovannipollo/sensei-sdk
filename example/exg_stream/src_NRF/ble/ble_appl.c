@@ -63,8 +63,8 @@ uint8_t bat_data[7];
 
 uart_to_pulp_data pck_uart_wolf;
 
+
 K_SEM_DEFINE(ble_data_received, 0, 1);
-K_SEM_DEFINE(config_received_sem, 0, 1);
 
 /**
  * @brief BLE Send Thread
@@ -94,25 +94,7 @@ void ble_send_thread(void *arg1, void *arg2, void *arg3) {
   }
 }
 
-/**
- * @brief Handle Configuration Data Reception
- *
- * Processes configuration parameters received from BLE after a
- * START_EEG_STREAMING command. The configuration data contains
- * 5 bytes: [SAMPLE_RATE, ADS_MODE, reserved, reserved, GAIN].
- * After processing, signals the config_received_sem semaphore to
- * unblock GetConfigParam().
- */
-static void handle_config_reception(void) {
-  LOG_INF("Config received");
-  eeg_config_t config = {.sample_rate = ble_data_available.data[0],
-                         .ads_mode = ble_data_available.data[1],
-                         .channel_2_func = ble_data_available.data[2],
-                         .channel_4_func = ble_data_available.data[3],
-                         .gain = ble_data_available.data[4]};
-  eeg_set_config(&config);
-  k_sem_give(&config_received_sem);
-}
+
 
 /**
  * @brief Forward BLE Data to GAP9 via UART
@@ -151,7 +133,7 @@ static void handle_ble_command(uint8_t cmd) {
 
   case GET_DEVICE_SETTINGS:
     LOG_DBG("Ping GET_DEVICE_SETTINGS");
-    SendDeviceSettings();
+    system_status_send_device_settings();
     break;
 
   case SET_DEVICE_SETTINGS:
@@ -160,22 +142,22 @@ static void handle_ble_command(uint8_t cmd) {
 
   case REQUEST_CONNECTING_STRING:
     LOG_DBG("Ping REQUEST_CONNECTING_STRING");
-    SendReady_BLE();
+    system_status_send_ready();
     break;
 
   case REQUEST_HARDWARE_VERSION:
     LOG_DBG("Ping REQUEST_HARDWARE_VERSION");
-    SendHardwareVersion();
+    system_status_send_hardware_version();
     break;
 
   case REQUEST_FIRMWARE_VERSION:
     LOG_DBG("Ping REQUEST_FIRMWARE_VERSION");
-    SendFirmwareVersion();
+    system_status_send_firmware_version();
     break;
 
   case REQUEST_AVAILABLE_SENSORS:
     LOG_DBG("Ping REQUEST_AVAILABLE_SENSORS");
-    SendAvailableSensors();
+    system_status_send_available_sensors();
     break;
 
   case GET_BOARD_STATE:
@@ -233,7 +215,6 @@ static void handle_ble_command(uint8_t cmd) {
     LOG_INF("Ping STOP_EEG_STREAMING");
     eeg_stop_streaming();
     ble_print_packet_stats(); /* Print BLE packet stats */
-    ResetConfigState();       /* Reset config state for next session */
     break;
 
   case START_MIC_STREAMING:
@@ -259,7 +240,6 @@ static void handle_ble_command(uint8_t cmd) {
     eeg_stop_streaming();
     ble_print_packet_stats(); /* Print BLE packet stats */
     sync_reset();             /* Clean up sync state */
-    ResetConfigState();       /* Reset config state for next session */
     break;
   case START_STREAMING_ALL:
     LOG_DBG("Ping START_STREAMING_ALL");
@@ -276,7 +256,6 @@ static void handle_ble_command(uint8_t cmd) {
     imu_stop_streaming();
     ble_print_packet_stats(); /* Print BLE packet stats */
     sync_reset();             /* Clean up sync state */
-    ResetConfigState();       /* Reset config state for next session */
     break;
   case START_IMU_STREAMING:
     LOG_DBG("Ping START_IMU_STREAMING");
@@ -334,55 +313,8 @@ void process_received_data_thread(void *arg1, void *arg2, void *arg3) {
   }
 }
 
-/**
- * @brief Get Configuration Parameters
- *
- * Blocks until configuration parameters are received from BLE using
- * a semaphore (no busy-waiting). This function is typically called
- * after START_EEG_STREAMING to wait for the streaming configuration.
- *
- * @param InitParams Pointer to array where configuration will be copied.
- *                   Must have space for at least 5 bytes:
- *                   [SAMPLE_RATE, ADS_MODE, reserved, reserved, GAIN]
- *
- * @return 0 on success, -EAGAIN on timeout
- */
-uint32_t GetConfigParam(uint8_t *InitParams) {
-  LOG_INF("Waiting for configuration parameters from BLE...");
 
-  /* Block until config is received (with 30 second timeout) */
-  int ret = k_sem_take(&config_received_sem, K_SECONDS(30));
-  LOG_INF("Semaphore taken, ret = %d", ret);
-  if (ret != 0) {
-    LOG_ERR("Timeout waiting for configuration parameters");
-    return -EAGAIN;
-  }
-
-  LOG_INF("Configuration parameters received from BLE.");
-  eeg_config_t config;
-  eeg_get_config(&config);
-
-  InitParams[0] = config.sample_rate;
-  InitParams[1] = config.ads_mode;
-  InitParams[2] = config.channel_2_func;
-  InitParams[3] = config.channel_4_func;
-  InitParams[4] = config.gain;
-
-  for (int i = 0; i < 5; i++) {
-    LOG_INF("ConfigParam[%d]: %d", i, InitParams[i]);
-  }
-  return 0;
-}
-
-/**
- * @brief Reset Configuration State
- *
- * Resets the configuration reception state. Should be called when
- * stopping streaming to ensure clean state for next session.
- */
-void ResetConfigState(void) { k_sem_reset(&config_received_sem); }
-
-// Funtion to put data into receive buffer
+// Function to put data into receive buffer
 void add_data_to_receive_buffer(uint8_t *data) {
   int ret;
 
@@ -442,73 +374,6 @@ void set_state_biogap(int8_t state) { biowolf_current_state = state; }
  */
 int8_t get_state_biogap(void) { return biowolf_current_state; }
 
-/**
- * @brief Send Hardware Version
- *
- * Sends the hardware version and revision over BLE.
- * Packet format: [REQUEST_HARDWARE_VERSION, HARDWARE_VERSION, HARDWARE_REVISION, BLE_PCK_TAILER]
- */
-void SendHardwareVersion() {
-
-  uint8_t hardware_version_data[4];
-  hardware_version_data[0] = REQUEST_HARDWARE_VERSION;
-  hardware_version_data[1] = HARDWARE_VERSION;
-  hardware_version_data[2] = HARDWARE_REVISION;
-  hardware_version_data[3] = BLE_PCK_TAILER;
-
-  return (send_data_ble(&hardware_version_data, sizeof(hardware_version_data)));
-}
-
-/**
- * @brief Send Firmware Version
- *
- * Sends the firmware version and revision over BLE.
- * Packet format: [REQUEST_FIRMWARE_VERSION, FIRMWARE_VERSION, FIRMWARE_REVISION, BLE_PCK_TAILER]
- */
-void SendFirmwareVersion() {
-  uint8_t firmware_version_data[4];
-  firmware_version_data[0] = REQUEST_FIRMWARE_VERSION;
-  firmware_version_data[1] = FIRMWARE_VERSION;
-  firmware_version_data[2] = FIRMWARE_REVISION;
-  firmware_version_data[3] = BLE_PCK_TAILER;
-
-  return (send_data_ble(&firmware_version_data, sizeof(firmware_version_data)));
-}
-
-/**
- * @brief Send Available Sensors
- *
- * Sends information about available sensors over BLE.
- * Packet format: [REQUEST_AVAILABLE_SENSORS, available_flag, reserved, BLE_PCK_TAILER]
- */
-void SendAvailableSensors() {
-  uint8_t available_sensors[4];
-  available_sensors[0] = REQUEST_AVAILABLE_SENSORS;
-  available_sensors[1] = true;
-  available_sensors[2] = 0;
-  available_sensors[3] = BLE_PCK_TAILER;
-
-  return (send_data_ble(&available_sensors, sizeof(available_sensors)));
-}
-
-/**
- * @brief Send Device Settings
- *
- * Sends the current device settings over BLE.
- * Currently not implemented.
- */
-void SendDeviceSettings() {}
-
-/**
- * @brief Send Ready String
- *
- * Sends the ready/connection confirmation string "BWF16" over BLE.
- * This is used to confirm successful connection to the client.
- */
-void SendReady_BLE() {
-  uint8_t ready[5] = {'B', 'W', 'F', '1', '6'};
-  return (send_data_ble(&ready[0], 5));
-}
 
 /* BLE Send Thread Definition */
 K_THREAD_DEFINE(ble_send_tid, BLE_SEND_STACK_SIZE, ble_send_thread, NULL, NULL, NULL, BLE_SEND_PRIORITY, 0, 0);

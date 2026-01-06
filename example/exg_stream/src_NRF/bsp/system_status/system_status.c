@@ -14,12 +14,15 @@
 #include "bsp/system_status/system_status.h"
 #include "bsp/battery/battery.h"
 #include "sensors/imu/imu_appl.h"
+#include "ble/ble_commands.h"
+#include "ble/bluetooth.h"
+#include "core/common.h"
+#include "afe/ads_defs.h"
+#include <stdbool.h>
 #include <zephyr/logging/log.h>
 
 LOG_MODULE_REGISTER(system_status, LOG_LEVEL_INF);
 
-// BLE Command for battery state (must match ble_appl.h / protocol)
-#define REQUEST_BATTERY_STATE 0x01
 
 int system_status_init(void) {
     LOG_INF("System Status aggregator initialized");
@@ -56,3 +59,44 @@ int system_status_build_ble_packet(uint8_t *buffer, size_t buf_size, size_t *out
     *out_len = 7;
     return 0;
 }
+
+/*==============================================================================
+ * Device Information Functions
+ *============================================================================*/
+
+void system_status_send_hardware_version(void) {
+    uint8_t data[4];
+    data[0] = REQUEST_HARDWARE_VERSION;
+    data[1] = HARDWARE_VERSION;
+    data[2] = HARDWARE_REVISION;
+    data[3] = BLE_PCK_TAILER;
+    send_data_ble(data, sizeof(data));
+}
+
+void system_status_send_firmware_version(void) {
+    uint8_t data[4];
+    data[0] = REQUEST_FIRMWARE_VERSION;
+    data[1] = FIRMWARE_VERSION;
+    data[2] = FIRMWARE_REVISION;
+    data[3] = BLE_PCK_TAILER;
+    send_data_ble(data, sizeof(data));
+}
+
+void system_status_send_available_sensors(void) {
+    uint8_t data[4];
+    data[0] = REQUEST_AVAILABLE_SENSORS;
+    data[1] = true;
+    data[2] = 0;
+    data[3] = BLE_PCK_TAILER;
+    send_data_ble(data, sizeof(data));
+}
+
+void system_status_send_device_settings(void) {
+    // Not implemented yet
+}
+
+void system_status_send_ready(void) {
+    uint8_t ready[5] = {'B', 'W', 'F', '1', '6'};
+    send_data_ble(ready, sizeof(ready));
+}
+

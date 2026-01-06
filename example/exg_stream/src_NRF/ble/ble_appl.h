@@ -75,14 +75,4 @@ void add_data_to_receive_buffer(uint8_t *data);
 void set_state_biogap(int8_t state);
 int8_t get_state_biogap(void);
 
-uint32_t GetConfigParam(uint8_t *InitParams);
-void ResetConfigState(void);
-
-void SendHardwareVersion();
-void SendFirmwareVersion();
-void SendAvailableSensors();
-
-void SendDeviceSettings();
-void SendReady_BLE();
-
 #endif // BLE_APPL_H
