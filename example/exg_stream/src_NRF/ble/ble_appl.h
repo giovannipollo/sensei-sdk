@@ -72,7 +72,4 @@ void init_ble_comm(void);
 void add_data_to_send_buffer(uint8_t *data, uint16_t size);
 void add_data_to_receive_buffer(uint8_t *data);
 
-void set_state_biogap(int8_t state);
-int8_t get_state_biogap(void);
-
 #endif // BLE_APPL_H

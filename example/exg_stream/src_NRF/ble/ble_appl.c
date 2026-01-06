@@ -58,9 +58,6 @@ K_MSGQ_DEFINE(receive_msgq, BLE_PCKT_RECEIVE_SIZE, RECEIVE_QUEUE_SIZE, 1);
 
 BLE_nus_data ble_data_available;
 
-int8_t biowolf_current_state = STATE_STREAMING_NORDIC;
-uint8_t bat_data[7];
-
 uart_to_pulp_data pck_uart_wolf;
 
 
@@ -124,6 +121,7 @@ static void handle_ble_command(uint8_t cmd) {
   case REQUEST_BATTERY_STATE:
     LOG_DBG("Ping REQUEST_BATTERY_STATE");
     size_t out_len = 0;
+    uint8_t bat_data[7];
     if (system_status_build_ble_packet(bat_data, sizeof(bat_data), &out_len) == 0) {
       send_data_ble(bat_data, (uint16_t)out_len);
     } else {
@@ -160,11 +158,13 @@ static void handle_ble_command(uint8_t cmd) {
     system_status_send_available_sensors();
     break;
 
-  case GET_BOARD_STATE:
+  case GET_BOARD_STATE: {
     LOG_DBG("Ping GET_BOARD_STATE");
-    LOG_DBG("Sending current state: %d", biowolf_current_state);
-    send_data_ble(&biowolf_current_state, 1);
+    int8_t current_state = system_status_get_board_state();
+    LOG_DBG("Sending current state: %d", current_state);
+    send_data_ble(&current_state, 1);
     break;
+  }
 
   case SET_BOARD_STATE:
     LOG_DBG("Ping SET_BOARD_STATE");
@@ -172,12 +172,12 @@ static void handle_ble_command(uint8_t cmd) {
     LOG_DBG(".data[2], %d", ble_data_available.data[2]);
 
     if (ble_data_available.data[1] == 1) {
-      set_state_biogap(STATE_STREAMING_NORDIC);
+      system_status_set_board_state(STATE_STREAMING_NORDIC);
     } else {
-      set_state_biogap(STATE_GAP9_MASTER);
+      system_status_set_board_state(STATE_GAP9_MASTER);
     }
 
-    if (get_state_biogap() == STATE_STREAMING_NORDIC) {
+    if (system_status_get_board_state() == STATE_STREAMING_NORDIC) {
       Set_ADS_Function(STILL);
     } else {
       Set_ADS_Function(INIT_GAP9_CTRL);
@@ -295,11 +295,11 @@ void process_received_data_thread(void *arg1, void *arg2, void *arg3) {
     LOG_INF("Received data from BLE");
 
     // Skip processing in programming mode
-    if (get_state_biogap() == STATE_PROGRAM_WOLF)
+    if (system_status_get_board_state() == STATE_PROGRAM_WOLF)
       continue;
 
     // Forward to GAP9 if in master mode
-    if (get_state_biogap() == STATE_GAP9_MASTER) {
+    if (system_status_get_board_state() == STATE_GAP9_MASTER) {
       forward_to_gap9();
       continue;
     }
@@ -355,24 +355,6 @@ void add_data_to_send_buffer(uint8_t *data, uint16_t size) {
     LOG_DBG("Data enqueued for sending: %d", data);
   }
 }
-
-/**
- * @brief Set Board State
- *
- * Updates the current biowolf/biogap board state.
- *
- * @param state The new state to set (e.g., STATE_STREAMING_NORDIC, STATE_GAP9_MASTER)
- */
-void set_state_biogap(int8_t state) { biowolf_current_state = state; }
-
-/**
- * @brief Get Board State
- *
- * Returns the current biowolf/biogap board state.
- *
- * @return The current board state
- */
-int8_t get_state_biogap(void) { return biowolf_current_state; }
 
 
 /* BLE Send Thread Definition */

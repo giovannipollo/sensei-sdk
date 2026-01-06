@@ -75,4 +75,23 @@ void system_status_send_device_settings(void);
  */
 void system_status_send_ready(void);
 
+/*==============================================================================
+ * Board State Management
+ *============================================================================*/
+
+/**
+ * @brief Set the board operating state.
+ * 
+ * @param state The new state (e.g., STATE_STREAMING_NORDIC, STATE_GAP9_MASTER)
+ */
+void system_status_set_board_state(int8_t state);
+
+/**
+ * @brief Get the current board operating state.
+ * 
+ * @return Current board state
+ */
+int8_t system_status_get_board_state(void);
+
 #endif /* SYSTEM_STATUS_H_ */
+

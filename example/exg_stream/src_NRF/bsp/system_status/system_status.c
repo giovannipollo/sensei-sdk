@@ -100,3 +100,16 @@ void system_status_send_ready(void) {
     send_data_ble(ready, sizeof(ready));
 }
 
+/*==============================================================================
+ * Board State Management
+ *============================================================================*/
+
+static int8_t board_current_state = STATE_STREAMING_NORDIC;
+
+void system_status_set_board_state(int8_t state) {
+    board_current_state = state;
+}
+
+int8_t system_status_get_board_state(void) {
+    return board_current_state;
+}
