@@ -248,16 +248,32 @@ static void handle_ble_command(uint8_t cmd) {
     LOG_INF("Ping STOP_MIC_STREAMING");
     mic_stop_streaming();
     break;
-  case START_COMBINED_STREAMING:
-    LOG_DBG("Ping START_COMBINED_STREAMING");
+  
+  case START_EEG_MIC_STREAMING:
+    LOG_DBG("Ping START_EEG_MIC_STREAMING");
+    ble_reset_packet_counters(); /* Reset packet counters for new session */
+    sync_begin(2); /* Setup sync barrier for 2 subsystems (EEG + MIC) */
+    mic_start_streaming();
+    eeg_start_streaming();
+    break;
+  case STOP_EEG_MIC_STREAMING:
+    LOG_DBG("Ping STOP_EEG_MIC_STREAMING");
+    mic_stop_streaming();
+    eeg_stop_streaming();
+    ble_print_packet_stats(); /* Print BLE packet stats */
+    sync_reset();       /* Clean up sync state */
+    ResetConfigState(); /* Reset config state for next session */
+    break;
+  case START_STREAMING_ALL:
+    LOG_DBG("Ping START_STREAMING_ALL");
     ble_reset_packet_counters(); /* Reset packet counters for new session */
     sync_begin(3); /* Setup sync barrier for 2 subsystems (EEG + MIC + IMU) */
     mic_start_streaming();
     eeg_start_streaming();
     imu_start_streaming();
     break;
-  case STOP_COMBINED_STREAMING:
-    LOG_DBG("Ping STOP_COMBINED_STREAMING");
+  case STOP_STREAMING_ALL:
+    LOG_DBG("Ping STOP_STREAMING_ALL");
     mic_stop_streaming();
     eeg_stop_streaming();
     imu_stop_streaming();
