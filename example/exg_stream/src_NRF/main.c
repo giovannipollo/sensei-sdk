@@ -116,8 +116,6 @@ int main(void) {
   LOG_INF("GAP9 powered up");
 
   struct uart_data_t *buf = k_malloc(sizeof(*buf));
-  LOG_INF("Initializing BLE comm...");
-  init_ble_comm();
   LOG_INF("Starting BLE adverts...");
   start_bluetooth_adverts();
 

@@ -28,15 +28,14 @@
 #include "ble/ble_appl.h"
 #include "afe/ads_appl.h"
 #include "afe/ads_spi.h"
+#include "bsp/battery/battery.h"
+#include "bsp/system_status/system_status.h"
 #include "core/common.h"
+#include "core/sync_streaming.h"
+#include "sensors/eeg/eeg_appl.h"
 #include "sensors/imu/imu_appl.h"
 #include "sensors/imu/lis2duxs12_sensor.h"
 #include "sensors/mic/mic_appl.h"
-#include "core/sync_streaming.h"
-#include "sensors/eeg/eeg_appl.h"
-#include "bsp/battery/battery.h"
-#include "bsp/system_status/system_status.h"
-
 
 #include <zephyr/logging/log.h>
 #include <zephyr/logging/log_ctrl.h>
@@ -106,13 +105,11 @@ void ble_send_thread(void *arg1, void *arg2, void *arg3) {
  */
 static void handle_config_reception(void) {
   LOG_INF("Config received");
-  eeg_config_t config = {
-    .sample_rate = ble_data_available.data[0],
-    .ads_mode = ble_data_available.data[1],
-    .channel_2_func = ble_data_available.data[2],
-    .channel_4_func = ble_data_available.data[3],
-    .gain = ble_data_available.data[4]
-  };
+  eeg_config_t config = {.sample_rate = ble_data_available.data[0],
+                         .ads_mode = ble_data_available.data[1],
+                         .channel_2_func = ble_data_available.data[2],
+                         .channel_4_func = ble_data_available.data[3],
+                         .gain = ble_data_available.data[4]};
   eeg_set_config(&config);
   k_sem_give(&config_received_sem);
 }
@@ -236,7 +233,7 @@ static void handle_ble_command(uint8_t cmd) {
     LOG_INF("Ping STOP_EEG_STREAMING");
     eeg_stop_streaming();
     ble_print_packet_stats(); /* Print BLE packet stats */
-    ResetConfigState(); /* Reset config state for next session */
+    ResetConfigState();       /* Reset config state for next session */
     break;
 
   case START_MIC_STREAMING:
@@ -248,11 +245,11 @@ static void handle_ble_command(uint8_t cmd) {
     LOG_INF("Ping STOP_MIC_STREAMING");
     mic_stop_streaming();
     break;
-  
+
   case START_EEG_MIC_STREAMING:
     LOG_DBG("Ping START_EEG_MIC_STREAMING");
     ble_reset_packet_counters(); /* Reset packet counters for new session */
-    sync_begin(2); /* Setup sync barrier for 2 subsystems (EEG + MIC) */
+    sync_begin(2);               /* Setup sync barrier for 2 subsystems (EEG + MIC) */
     mic_start_streaming();
     eeg_start_streaming();
     break;
@@ -261,13 +258,13 @@ static void handle_ble_command(uint8_t cmd) {
     mic_stop_streaming();
     eeg_stop_streaming();
     ble_print_packet_stats(); /* Print BLE packet stats */
-    sync_reset();       /* Clean up sync state */
-    ResetConfigState(); /* Reset config state for next session */
+    sync_reset();             /* Clean up sync state */
+    ResetConfigState();       /* Reset config state for next session */
     break;
   case START_STREAMING_ALL:
     LOG_DBG("Ping START_STREAMING_ALL");
     ble_reset_packet_counters(); /* Reset packet counters for new session */
-    sync_begin(3); /* Setup sync barrier for 2 subsystems (EEG + MIC + IMU) */
+    sync_begin(3);               /* Setup sync barrier for 2 subsystems (EEG + MIC + IMU) */
     mic_start_streaming();
     eeg_start_streaming();
     imu_start_streaming();
@@ -278,15 +275,13 @@ static void handle_ble_command(uint8_t cmd) {
     eeg_stop_streaming();
     imu_stop_streaming();
     ble_print_packet_stats(); /* Print BLE packet stats */
-    sync_reset();       /* Clean up sync state */
-    ResetConfigState(); /* Reset config state for next session */
+    sync_reset();             /* Clean up sync state */
+    ResetConfigState();       /* Reset config state for next session */
     break;
-
   case START_IMU_STREAMING:
     LOG_DBG("Ping START_IMU_STREAMING");
     imu_start_streaming();
     break;
-
   case STOP_IMU_STREAMING:
     LOG_DBG("Ping STOP_IMU_STREAMING");
     imu_stop_streaming();
@@ -366,13 +361,13 @@ uint32_t GetConfigParam(uint8_t *InitParams) {
   LOG_INF("Configuration parameters received from BLE.");
   eeg_config_t config;
   eeg_get_config(&config);
-  
+
   InitParams[0] = config.sample_rate;
   InitParams[1] = config.ads_mode;
   InitParams[2] = config.channel_2_func;
   InitParams[3] = config.channel_4_func;
   InitParams[4] = config.gain;
-  
+
   for (int i = 0; i < 5; i++) {
     LOG_INF("ConfigParam[%d]: %d", i, InitParams[i]);
   }
@@ -385,9 +380,7 @@ uint32_t GetConfigParam(uint8_t *InitParams) {
  * Resets the configuration reception state. Should be called when
  * stopping streaming to ensure clean state for next session.
  */
-void ResetConfigState(void) {
-  k_sem_reset(&config_received_sem);
-}
+void ResetConfigState(void) { k_sem_reset(&config_received_sem); }
 
 // Funtion to put data into receive buffer
 void add_data_to_receive_buffer(uint8_t *data) {
@@ -430,13 +423,6 @@ void add_data_to_send_buffer(uint8_t *data, uint16_t size) {
     LOG_DBG("Data enqueued for sending: %d", data);
   }
 }
-
-/**
- * @brief Initialize BLE Communication
- *
- * Creates the BLE send and receive threads.
- */
-void init_ble_comm() { LOG_INF("Initializing BLE communication"); }
 
 /**
  * @brief Set Board State
