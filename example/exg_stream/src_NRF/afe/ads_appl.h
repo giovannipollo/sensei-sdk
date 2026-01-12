@@ -31,8 +31,8 @@
  * @brief ADS1298 Application Layer Interface
  *
  * This module provides high-level application control for the ADS1298 bio-potential
- * analog front-end (AFE) devices. It manages the application state machine and
- * trigger synchronization for EEG/EMG/ExG data acquisition.
+ * analog front-end (AFE) devices. It manages the application state machine
+ * for EEG/EMG/ExG data acquisition.
  */
 
 #ifndef ADS_APPL_H
@@ -46,35 +46,32 @@
  *============================================================================*/
 
 /**
- * @enum ADS_function_t
  * @brief Application state machine functions for ADS1298 control
  *
  * Defines the various operational states and commands that control the
  * behavior of the ADS1298 devices and the overall system.
  */
-
-enum ADS_function_t {
-  READ,           /**< Continuous data reading mode */
-  START,          /**< Start data acquisition */
-  STOP,           /**< Stop data acquisition */
-  STILL,          /**< Idle state, no active operation */
-  INIT_GAP9_CTRL, /**< Initialize GAP9 processor control */
-  WOLF_CTRL,      /**< Biowolf system control */
-  CONNECT,        /**< Establish connection */
-  RESTART_WOLF,   /**< Restart Biowolf system */
-  TOGGLE_DRDY,    /**< Toggle data ready pin monitoring */
-  READ_BATTERY,   /**< Read battery status */
-  PROGRAM_WOLF,   /**< Program Biowolf firmware */
-  ES_QUALITY      /**< Electrode-skin quality measurement */
-};
+typedef enum {
+  ADS_READ,           /**< Continuous data reading mode */
+  ADS_START,          /**< Start data acquisition */
+  ADS_STOP,           /**< Stop data acquisition */
+  ADS_STILL,          /**< Idle state, no active operation */
+  ADS_INIT_GAP9_CTRL, /**< Initialize GAP9 processor control */
+  ADS_WOLF_CTRL,      /**< Biowolf system control */
+  ADS_CONNECT,        /**< Establish connection */
+  ADS_RESTART_WOLF,   /**< Restart Biowolf system */
+  ADS_TOGGLE_DRDY,    /**< Toggle data ready pin monitoring */
+  ADS_READ_BATTERY,   /**< Read battery status */
+  ADS_PROGRAM_WOLF,   /**< Program Biowolf firmware */
+  ADS_ES_QUALITY      /**< Electrode-skin quality measurement */
+} ads_function_t;
 
 /**
- * @enum ADS_id_t
  * @brief ADS1298 device identifier
  *
  * Used to distinguish between the two ADS1298 chips in the dual-AFE configuration.
  */
-enum ADS_id_t { ADS1298_A, ADS1298_B };
+typedef enum { ADS1298_A, ADS1298_B } ads_device_id_t;
 
 /*==============================================================================
  * Global Variables
@@ -86,7 +83,7 @@ enum ADS_id_t { ADS1298_A, ADS1298_B };
  * This variable tracks the current operational state of the system.
  * It is used by various modules to coordinate data acquisition and processing.
  */
-extern enum ADS_function_t ADS_function;
+extern ads_function_t ads_function;
 
 /*==============================================================================
  * Function Declarations
@@ -95,9 +92,9 @@ extern enum ADS_function_t ADS_function;
 /**
  * @brief Get the current ADS application function state
  *
- * @return Current ADS_function_t state
+ * @return Current ads_function_t state
  */
-enum ADS_function_t Get_ADS_Function();
+ads_function_t ads_get_function(void);
 
 /**
  * @brief Set the ADS application function state
@@ -108,25 +105,6 @@ enum ADS_function_t Get_ADS_Function();
  *
  * @param f New function state to set
  */
-void Set_ADS_Function(enum ADS_function_t f);
-
-/**
- * @brief Set the trigger value for sample synchronization
- *
- * The trigger value is embedded in each data packet and can be used to
- * mark specific events or stimuli for time-locked analysis.
- *
- * @param value Trigger value to set (0x00-0xFF)
- */
-void set_trigger(uint8_t value);
-
-/**
- * @brief Get the current trigger value
- *
- * Retrieves the trigger value that will be embedded in the next data packet.
- *
- * @return Current trigger value (0x00-0xFF)
- */
-uint8_t get_trigger();
+void ads_set_function(ads_function_t f);
 
 #endif // ADS_APPL_H

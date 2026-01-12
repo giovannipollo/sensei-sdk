@@ -40,7 +40,7 @@ static void battery_update_thread(void *arg1, void *arg2, void *arg3)
     while (1) {
         k_sleep(K_MSEC(5000));
         // Only update if not currently reading ADS data to avoid I2C/SPI interference if shared
-        if (Get_ADS_Function() != READ) {
+        if (ads_get_function() != ADS_READ) {
             battery_update_status();
         }
     }

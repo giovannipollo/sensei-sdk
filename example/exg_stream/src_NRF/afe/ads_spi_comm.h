@@ -39,16 +39,16 @@
 /**
  * @brief Perform SPI read transaction with command
  */
-int ads1298_read_spi(uint8_t *data, uint8_t size, enum ADS_id_t ads_id);
+int ads1298_read_spi(uint8_t *data, uint8_t size, ads_device_id_t ads_id);
 
 /**
  * @brief Read ADC sample data in continuous mode
  */
-int ads1298_read_samples_comm(uint8_t *data, uint8_t size, enum ADS_id_t ads_id);
+int ads1298_read_samples_comm(uint8_t *data, uint8_t size, ads_device_id_t ads_id);
 
 /**
  * @brief Write command or register data to ADS1298
  */
-int ads1298_write_spi(uint8_t size, enum ADS_id_t ads_id);
+int ads1298_write_spi(uint8_t size, ads_device_id_t ads_id);
 
 #endif // ADS_SPI_COMM_H

@@ -66,11 +66,4 @@
 #define STOP_EEG_MIC_STREAMING 36
 #define SET_DEVICE_SETTINGS 12
 
-/*==============================================================================
- * Trigger State Definitions
- *============================================================================*/
-
-#define TRIGGER_ON 1
-#define TRIGGER_OFF 0
-
 #endif // BLE_COMMANDS_H

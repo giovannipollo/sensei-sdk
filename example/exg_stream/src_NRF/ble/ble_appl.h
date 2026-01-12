@@ -52,19 +52,29 @@ typedef struct {
 
 #include "ble/ble_commands.h"
 
+/**
+ * @brief BLE NUS received data structure
+ * 
+ * Holds data received from the BLE Nordic UART Service.
+ */
 typedef struct {
   bool available;
   int size;
   uint8_t data[BLE_PCKT_RECEIVE_SIZE];
-} BLE_nus_data;
+} ble_nus_data_t;
 
+/**
+ * @brief UART to GAP9/PULP data structure
+ * 
+ * Used for forwarding BLE data to the GAP9 processor via UART.
+ */
 typedef struct {
   bool is_data_available;
   uint8_t data_len;
   uint8_t p_data[250];
-} uart_to_pulp_data;
+} uart_to_pulp_data_t;
 
-extern BLE_nus_data ble_data_available;
+extern ble_nus_data_t ble_data_available;
 extern struct k_sem ble_data_received;
 
 // Function prototypes

@@ -71,7 +71,7 @@
  *   - 24 bytes: ADS1298_A data (8 channels × 3 bytes)
  *   - 24 bytes: ADS1298_B data (8 channels × 3 bytes)
  *   - 1 byte: Counter_extra
- *   - 1 byte: Trigger
+ *   - 1 byte: Reserved (reserved for future use)
  * - 3 bytes: Metadata (reserved for future use)
  * - 1 byte: Trailer (0xAA)
  *
@@ -88,7 +88,7 @@
 /** @brief Number of EEG samples per BLE packet */
 #define EEG_SAMPLES_PER_PACKET 4
 
-/** @brief Bytes per EEG sample (ADS_A + ADS_B + counter_extra + trigger) */
+/** @brief Bytes per EEG sample (ADS_A + ADS_B + counter_extra + reserved) */
 #define EEG_BYTES_PER_SAMPLE 50
 
 /** @brief Index where sample data ends (before metadata)

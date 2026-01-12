@@ -53,7 +53,7 @@
  * // In BLE command handler (START_COMBINED_STREAMING):
  * sync_begin(2);              // Expect 2 subsystems
  * mic_start_streaming();      // Wake MIC thread
- * Set_ADS_Function(START);    // Trigger EXG state machine
+ * ads_set_function(ADS_START); // Trigger EXG state machine
  *
  * // In MIC thread:
  * dmic_configure(...);        // Initialize hardware

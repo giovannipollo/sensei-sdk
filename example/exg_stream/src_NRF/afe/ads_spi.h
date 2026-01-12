@@ -110,7 +110,7 @@ void ads_clear_skip_reads();
  *
  * @note Device must pass ID check before initialization proceeds
  */
-void ads_init(uint8_t *InitParams, enum ADS_id_t ads_id);
+void ads_init(uint8_t *InitParams, ads_device_id_t ads_id);
 
 /**
  * @brief Verify ADS1298 device ID
@@ -120,7 +120,7 @@ void ads_init(uint8_t *InitParams, enum ADS_id_t ads_id);
  *
  * @param ads_id Device identifier (ADS1298_A or ADS1298_B)
  */
-void ads_check_id(enum ADS_id_t ads_id);
+void ads_check_id(ads_device_id_t ads_id);
 
 
 /*==============================================================================

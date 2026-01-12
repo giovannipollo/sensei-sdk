@@ -90,7 +90,7 @@ extern uint8_t counter;
  * @note If ID check fails, function enters infinite loop with error logging
  * @note 30ms delays allow device to complete operations per datasheet timing
  */
-void ads_check_id(enum ADS_id_t ads_id) {
+void ads_check_id(ads_device_id_t ads_id) {
 
   // RESET DEVICE
   pr_word[0] = _RESET;
@@ -159,7 +159,7 @@ void ads_check_id(enum ADS_id_t ads_id) {
  * @note 30ms delays allow device to complete configuration per datasheet
  * @note Sets ads_initialized flag when complete
  */
-void ads_init(uint8_t *InitParams, enum ADS_id_t ads_id) {
+void ads_init(uint8_t *InitParams, ads_device_id_t ads_id) {
 
   // buffer_counter = 0;
   tx_buf_inx = 0;

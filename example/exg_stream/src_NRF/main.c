@@ -143,6 +143,14 @@ int main(void) {
     LOG_INF("EEG subsystem initialized");
   }
 
+  // Initialize EMG subsystem
+  LOG_INF("Initializing EMG subsystem...");
+  if (emg_init() != 0) {
+    LOG_WRN("EMG initialization failed - EMG streaming disabled");
+  } else {
+    LOG_INF("EMG subsystem initialized");
+  }
+
   // Initialize inter-board synchronization
   LOG_INF("Initializing board sync...");
   if (board_sync_init() != 0) {

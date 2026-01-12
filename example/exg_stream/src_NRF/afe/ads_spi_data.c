@@ -188,7 +188,7 @@ int skiped_samples = 0;
 /**
  * @brief Read ADC sample data in continuous mode
  */
-static int ads1298_read_samples(uint8_t *data, uint8_t size, enum ADS_id_t ads_id);
+static int ads1298_read_samples(uint8_t *data, uint8_t size, ads_device_id_t ads_id);
 
 /*==============================================================================
  * Public Functions - Data Processing
@@ -201,7 +201,7 @@ static int ads1298_read_samples(uint8_t *data, uint8_t size, enum ADS_id_t ads_i
  * Called from the SPIM hardware interrupt handler.
  */
 void ads_spim_handler_done(void) {
-  if (Get_ADS_Function() == READ) {
+  if (ads_get_function() == ADS_READ) {
     memcpy(&ble_tx_buf[tx_buf_inx], &ads_rx_buf[3], 24);
     tx_buf_inx += 24;
 
@@ -234,14 +234,14 @@ void ads_spim_handler_done(void) {
       // Attach other data
       //  Set packet identifier to EEG all channels + PPG inactive
       ble_tx_buf[tx_buf_inx++] = counter_extra; // add here your custom data for each sample.
-      ble_tx_buf[tx_buf_inx++] = get_trigger(); // this will capture the tigger per sample send throught UART BLE
+      ble_tx_buf[tx_buf_inx++] = 0x00; // Reserved byte for future use
     }
 
     if (tx_buf_inx == EEG_SAMPLE_DATA_END) {
       // Check if the last pck was handled and reset flag
 
       if (pck_ble_ready == true) {
-        Set_ADS_Function(STOP);
+        ads_set_function(ADS_STOP);
         pck_ble_ready = false;
         LOG_INF("Data packet not processed -- stop ADS");
       } else {
@@ -309,7 +309,7 @@ void process_ads_data(void) {
     ads_data_ready = false;
 
     // Process received data as needed
-    if (Get_ADS_Function() == READ) {
+    if (ads_get_function() == ADS_READ) {
 
       if (skip_reads) {
         if (skiped_samples++ == 500) {
@@ -321,7 +321,7 @@ void process_ads_data(void) {
       if (!skip_reads) {
 
         if (!drdy_served) {
-          Set_ADS_Function(STOP);
+          ads_set_function(ADS_STOP);
         } else {
           drdy_served = false;
 
@@ -365,8 +365,8 @@ void process_ads_data(void) {
  * @note Called from DRDY interrupt context via process_ads_data()
  * @note empty_buffer contains zeros for dummy TX bytes
  */
-static int ads1298_read_samples(uint8_t *data, uint8_t size, enum ADS_id_t ads_id) {
+static int ads1298_read_samples(uint8_t *data, uint8_t size, ads_device_id_t ads_id) {
   // Implementation moved to ads_spi_comm.c
-  extern int ads1298_read_samples_comm(uint8_t *data, uint8_t size, enum ADS_id_t ads_id);
+  extern int ads1298_read_samples_comm(uint8_t *data, uint8_t size, ads_device_id_t ads_id);
   return ads1298_read_samples_comm(data, size, ads_id);
 }

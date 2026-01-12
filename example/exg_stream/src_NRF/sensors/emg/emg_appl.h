@@ -178,25 +178,6 @@ emg_state_t emg_get_state(void);
 bool emg_is_streaming(void);
 
 /**
- * @brief Set the trigger value for sample synchronization
- *
- * The trigger value is embedded in each data packet and can be used to
- * mark specific events or stimuli for time-locked analysis.
- *
- * @param value Trigger value to set (0x00-0xFF)
- */
-void emg_set_trigger(uint8_t value);
-
-/**
- * @brief Get the current trigger value
- *
- * Retrieves the trigger value that will be embedded in the next data packet.
- *
- * @return Current trigger value (0x00-0xFF)
- */
-uint8_t emg_get_trigger(void);
-
-/**
  * @brief Set the EMG configuration
  *
  * Updates the EMG configuration parameters. Configuration will be applied

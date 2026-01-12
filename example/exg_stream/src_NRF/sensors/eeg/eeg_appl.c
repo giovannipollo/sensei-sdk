@@ -71,7 +71,6 @@ static K_SEM_DEFINE(eeg_start_sem, 0, 1);
 static uint8_t eeg_tx_buf[EEG_PCKT_SIZE];
 static uint8_t eeg_buf_idx = 0;
 static uint8_t eeg_pkt_counter = 0;
-static uint8_t eeg_trigger_value = 0;
 static eeg_config_t eeg_config = {
     .sample_rate = 6,
     .ads_mode = 0,
@@ -116,7 +115,6 @@ int eeg_init(void) {
   eeg_keep_running = false;
   eeg_buf_idx = 0;
   eeg_pkt_counter = 0;
-  eeg_trigger_value = 0;
 
   LOG_INF("EEG subsystem initialized successfully");
   return 0;
@@ -184,14 +182,6 @@ eeg_state_t eeg_get_state(void) { return eeg_state; }
 
 bool eeg_is_streaming(void) { return (eeg_state == EEG_STATE_STREAMING); }
 
-void eeg_set_trigger(uint8_t value) {
-  eeg_trigger_value = value;
-  // Also set in ADS application layer
-  set_trigger(value);
-}
-
-uint8_t eeg_get_trigger(void) { return eeg_trigger_value; }
-
 int eeg_set_config(const eeg_config_t *config) {
   if (!config) return -1;
   memcpy(&eeg_config, config, sizeof(eeg_config_t));
@@ -247,14 +237,14 @@ static void eeg_streaming_thread(void *arg1, void *arg2, void *arg3) {
 
     eeg_state = EEG_STATE_STREAMING;
     ads_clear_skip_reads();
-    Set_ADS_Function(READ);
+    ads_set_function(ADS_READ);
 
     while (eeg_keep_running) {
       process_ads_data();
     }
 
     LOG_INF("EEG streaming thread stopping");
-    Set_ADS_Function(STILL);
+    ads_set_function(ADS_STILL);
     LOG_INF("ADS set to STILL");
     ads_stop();
     LOG_INF("ADS stopped");

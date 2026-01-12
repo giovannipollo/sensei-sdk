@@ -116,21 +116,8 @@ static K_SEM_DEFINE(throughput_sem, 0, 1);
 /** @brief Work item for advertising restart */
 static struct k_work advertise_work;
 
-/** @brief UART data structure for legacy FIFO operations */
-struct uart_data_t {
-  void *fifo_reserved;
-  uint8_t data[CONFIG_BT_NUS_UART_BUFFER_SIZE];
-  uint16_t len;
-};
-
 /** @brief Test data buffer for throughput measurement */
 static uint8_t test_data[TEST_DATA_LEN];
-
-/** @brief Legacy FIFO for UART TX data (unused) */
-static K_FIFO_DEFINE(fifo_uart_tx_data);
-
-/** @brief Legacy FIFO for UART RX data (unused) */
-static K_FIFO_DEFINE(fifo_uart_rx_data);
 
 /** @brief Current active BLE connection */
 static struct bt_conn *current_conn;
@@ -428,20 +415,8 @@ void ble_write_thread(void) {
   k_sleep(K_MSEC(5000));
   LOG_INF("Now you can send data over BLE NUS");
 
-  // Set_ADS_Function(READ);
-
   for (;;) {
     k_sleep(K_MSEC(100));
-  }
-
-  /* Dead code - keeping for reference */
-  for (;;) {
-    struct uart_data_t *buf = k_fifo_get(&fifo_uart_rx_data, K_FOREVER);
-
-    if (bt_nus_send(NULL, buf->data, buf->len)) {
-      LOG_WRN("Failed to send data over BLE connection");
-    }
-    k_free(buf);
   }
 }
 

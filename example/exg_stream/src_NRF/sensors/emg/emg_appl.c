@@ -71,7 +71,6 @@ static K_SEM_DEFINE(emg_start_sem, 0, 1);
 static uint8_t emg_tx_buf[EMG_PCKT_SIZE];
 static uint8_t emg_buf_idx = 0;
 static uint8_t emg_pkt_counter = 0;
-static uint8_t emg_trigger_value = 0;
 static emg_config_t emg_config = {
     .sample_rate = 6,
     .ads_mode = 0,
@@ -116,7 +115,6 @@ int emg_init(void) {
   emg_keep_running = false;
   emg_buf_idx = 0;
   emg_pkt_counter = 0;
-  emg_trigger_value = 0;
 
   LOG_INF("EMG subsystem initialized successfully");
   return 0;
@@ -184,14 +182,6 @@ emg_state_t emg_get_state(void) { return emg_state; }
 
 bool emg_is_streaming(void) { return (emg_state == EMG_STATE_STREAMING); }
 
-void emg_set_trigger(uint8_t value) {
-  emg_trigger_value = value;
-  // Also set in ADS application layer
-  set_trigger(value);
-}
-
-uint8_t emg_get_trigger(void) { return emg_trigger_value; }
-
 int emg_set_config(const emg_config_t *config) {
   if (!config) return -1;
   memcpy(&emg_config, config, sizeof(emg_config_t));
@@ -247,14 +237,14 @@ static void emg_streaming_thread(void *arg1, void *arg2, void *arg3) {
 
     emg_state = EMG_STATE_STREAMING;
     ads_clear_skip_reads();
-    Set_ADS_Function(READ);
+    ads_set_function(ADS_READ);
 
     while (emg_keep_running) {
       process_ads_data();
     }
 
     LOG_INF("EMG streaming thread stopping");
-    Set_ADS_Function(STILL);
+    ads_set_function(ADS_STILL);
     LOG_INF("ADS set to STILL");
     ads_stop();
     LOG_INF("ADS stopped");

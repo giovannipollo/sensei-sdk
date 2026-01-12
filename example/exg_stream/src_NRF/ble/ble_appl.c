@@ -56,9 +56,9 @@ K_MSGQ_DEFINE(receive_msgq, BLE_PCKT_RECEIVE_SIZE, RECEIVE_QUEUE_SIZE, 1);
 #define BLE_RECEIVE_STACK_SIZE 2048
 #define BLE_RECEIVE_PRIORITY 4
 
-BLE_nus_data ble_data_available;
+ble_nus_data_t ble_data_available;
 
-uart_to_pulp_data pck_uart_wolf;
+uart_to_pulp_data_t pck_uart_wolf;
 
 
 K_SEM_DEFINE(ble_data_received, 0, 1);
@@ -178,9 +178,9 @@ static void handle_ble_command(uint8_t cmd) {
     }
 
     if (system_status_get_board_state() == STATE_STREAMING_NORDIC) {
-      Set_ADS_Function(STILL);
+      ads_set_function(ADS_STILL);
     } else {
-      Set_ADS_Function(INIT_GAP9_CTRL);
+      ads_set_function(ADS_INIT_GAP9_CTRL);
     }
     break;
 
@@ -193,8 +193,7 @@ static void handle_ble_command(uint8_t cmd) {
     break;
 
   case SET_TRIGGER_STATE:
-    LOG_DBG("Ping SET_TRIGGER_STATE");
-    eeg_set_trigger(ble_data_available.data[1]);
+    LOG_DBG("Ping SET_TRIGGER_STATE (deprecated - trigger removed)");
     break;
 
   case ENTER_BOOTLOADERT_MODE:

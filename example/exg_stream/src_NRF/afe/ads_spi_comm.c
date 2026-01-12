@@ -87,7 +87,7 @@ extern uint8_t ads_rx_buf[40];
  * @param ads_id Device to select (ADS1298_A or ADS1298_B)
  * @return 0 on success, -1 on error
  */
-static int ads_chip_select(enum ADS_id_t ads_id) {
+static int ads_chip_select(ads_device_id_t ads_id) {
   // Implementation depends on hardware pins defined in ads_spi_hw.c
   extern const struct gpio_dt_spec gpio_dt_ads1298_a_cs;
   extern const struct gpio_dt_spec gpio_dt_ads1298_b_cs;
@@ -126,7 +126,7 @@ static int ads_chip_select(enum ADS_id_t ads_id) {
  * @note This function disables interrupts during transfer for timing accuracy
  * @note CS is asserted by this function and deasserted by interrupt handler
  */
-int ads1298_read_spi(uint8_t *data, uint8_t size, enum ADS_id_t ads_id) {
+int ads1298_read_spi(uint8_t *data, uint8_t size, ads_device_id_t ads_id) {
   extern struct k_mutex spi_mutex;
   extern nrfx_spim_t spim_inst;
 
@@ -167,7 +167,7 @@ int ads1298_read_spi(uint8_t *data, uint8_t size, enum ADS_id_t ads_id) {
  * @note Called from DRDY interrupt context via process_ads_data()
  * @note empty_buffer contains zeros for dummy TX bytes
  */
-int ads1298_read_samples_comm(uint8_t *data, uint8_t size, enum ADS_id_t ads_id) {
+int ads1298_read_samples_comm(uint8_t *data, uint8_t size, ads_device_id_t ads_id) {
   extern struct k_mutex spi_mutex;
   extern nrfx_spim_t spim_inst;
 
@@ -206,7 +206,7 @@ int ads1298_read_samples_comm(uint8_t *data, uint8_t size, enum ADS_id_t ads_id)
  * @note pr_word buffer must be populated before calling this function
  * @note Transfer is non-blocking; poll spi_xfer_done for completion
  */
-int ads1298_write_spi(uint8_t size, enum ADS_id_t ads_id) {
+int ads1298_write_spi(uint8_t size, ads_device_id_t ads_id) {
   extern struct k_mutex spi_mutex;
   extern nrfx_spim_t spim_inst;
 

@@ -50,17 +50,9 @@ LOG_MODULE_REGISTER(ads_appl, LOG_LEVEL_INF);
 /**
  * @brief Current application state
  *
- * Initialized to STILL (idle) state. Modified by BLE commands and error handlers.
+ * Initialized to ADS_STILL (idle) state. Modified by BLE commands and error handlers.
  */
-enum ADS_function_t ADS_function = STILL;
-
-/**
- * @brief Trigger value for event marking
- *
- * This value is embedded in each data packet to mark specific events or stimuli.
- * Initialized to 0x00 (no trigger active).
- */
-static int trigger_value = 0x00;
+ads_function_t ads_function = ADS_STILL;
 
 /*==============================================================================
  * Public Functions
@@ -71,9 +63,9 @@ static int trigger_value = 0x00;
  *
  * Thread-safe getter for the global application state.
  *
- * @return Current ADS_function_t state
+ * @return Current ads_function_t state
  */
-enum ADS_function_t Get_ADS_Function() { return (ADS_function); }
+ads_function_t ads_get_function(void) { return ads_function; }
 
 /**
  * @brief Set the ADS application function state
@@ -89,36 +81,8 @@ enum ADS_function_t Get_ADS_Function() { return (ADS_function); }
  *       it only updates the state variable. The actual transition is
  *       handled by the main loop or interrupt handlers.
  */
-void Set_ADS_Function(enum ADS_function_t f) { 
+void ads_set_function(ads_function_t f) { 
     LOG_DBG("Setting ADS function to %d", f);
-    ADS_function = f; 
+    ads_function = f; 
 }
 
-/**
- * @brief Set the trigger value for sample synchronization
- *
- * The trigger value is used to mark specific samples in the data stream.
- * Typical use cases include:
- * - Event-related potential (ERP) studies
- * - Stimulus presentation marking
- * - Synchronization with external devices
- *
- * @param value Trigger value to set (0x00-0xFF)
- *
- * @note The trigger value is automatically embedded in each BLE packet
- *       and reset after transmission (if needed by application logic).
- */
-void set_trigger(uint8_t value) { 
-    LOG_DBG("Setting trigger value to %d", value);
-    trigger_value = value; 
-}
-
-/**
- * @brief Get the current trigger value
- *
- * Retrieves the trigger value that will be embedded in the next data packet.
- * This function is called by the data packaging routine in ads_spi.c.
- *
- * @return Current trigger value (0x00-0xFF)
- */
-uint8_t get_trigger() { return trigger_value; }
