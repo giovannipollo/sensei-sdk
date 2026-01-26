@@ -216,6 +216,18 @@ static void handle_ble_command(uint8_t cmd) {
     ble_print_packet_stats(); /* Print BLE packet stats */
     break;
 
+  case START_EMG_STREAMING:
+    LOG_INF("Ping START_EMG_STREAMING");
+    ble_reset_packet_counters(); /* Reset packet counters for new session */
+    LOG_INF("Starting EMG streaming");
+    emg_start_streaming();
+    break;
+
+  case STOP_EMG_STREAMING:
+    LOG_INF("Ping STOP_EMG_STREAMING");
+    emg_stop_streaming();
+    ble_print_packet_stats(); /* Print BLE packet stats */
+    break;
   case START_MIC_STREAMING:
     LOG_INF("Ping START_MIC_STREAMING");
     mic_start_streaming();

@@ -229,9 +229,6 @@ void ads_spim_handler_done(void) {
     }
 
     if (ads_to_read == ADS1298_B) {
-      /* IMU data is now sent independently via lis2duxs12_sensor.c */
-
-      // Attach other data
       //  Set packet identifier to EEG all channels + PPG inactive
       ble_tx_buf[tx_buf_inx++] = counter_extra; // add here your custom data for each sample.
       ble_tx_buf[tx_buf_inx++] = 0x00; // Reserved byte for future use
