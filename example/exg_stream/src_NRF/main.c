@@ -108,12 +108,6 @@ int main(void) {
   LOG_INF("Initializing ADS...");
   ret = ads_dr_init();
 
-  // LOG_INF("Powering ADS unipolar");
-  LOG_INF("Powering ADS bipolar");
-  // pwr_ads_on_unipolar();
-  pwr_ads_on_bipolar();
-  k_msleep(300);
-
   LOG_INF("Initializing SPI...");
   init_spi();
 

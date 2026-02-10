@@ -133,6 +133,10 @@ int emg_start_streaming(void) {
   emg_buf_idx = 0;
   emg_pkt_counter = 0;
 
+  LOG_INF("Powering ADS bipolar");
+  pwr_ads_on_bipolar();
+  k_msleep(300);
+
   if (first_run) {
     first_run = false;
     LOG_INF("Checking ADS1298 device IDs");

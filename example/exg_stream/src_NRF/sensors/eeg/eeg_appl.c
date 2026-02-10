@@ -133,6 +133,10 @@ int eeg_start_streaming(void) {
   eeg_buf_idx = 0;
   eeg_pkt_counter = 0;
 
+  LOG_INF("Powering ADS unipolar");
+  pwr_ads_on_unipolar();
+  k_msleep(300);
+
   if (first_run) {
     first_run = false;
     LOG_INF("Checking ADS1298 device IDs");
