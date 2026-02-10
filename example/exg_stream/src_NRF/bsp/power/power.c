@@ -15,6 +15,7 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/sys/util.h>
 
 #include "pwr/pwr_common.h"
 #include "max77654.h"
@@ -124,3 +125,16 @@ int power_ads_on_bipolar(void) {
 int pwr_ads_on_unipolar(void) { return power_ads_on_unipolar(); }
 int pwr_ads_on_bipolar(void) { return power_ads_on_bipolar(); }
 int pwr_ads_off(void) { return power_ads_off(); }
+
+int power_exg_on(void) {
+#if defined(CONFIG_SENSOR_EEG) && !defined(CONFIG_SENSOR_EMG)
+    LOG_INF("EEG sensor - powering on unipolar configuration");
+    return power_ads_on_unipolar();
+#elif defined(CONFIG_SENSOR_EMG) && !defined(CONFIG_SENSOR_EEG)
+    LOG_INF("EMG sensor - powering on bipolar configuration");
+    return power_ads_on_bipolar();
+#else
+    LOG_ERR("No EXG sensor enabled");
+    return -EINVAL;
+#endif
+}

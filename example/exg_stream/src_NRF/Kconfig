@@ -46,6 +46,20 @@ config HAS_SEGGER_RTT
 
 endmenu
 
+config SENSOR_EMG
+	bool "EMG sensor"
+	default n
+	help
+	  Enable support for EMG sensor. This will include the necessary drivers,
+	  state machine states, and data processing for EMG data acquisition.
+
+config SENSOR_EEG
+	bool "EEG sensor"
+	default n
+	help
+	  Enable support for EEG sensor. This will include the necessary drivers,
+	  state machine states, and data processing for EEG data acquisition.
+
 menu "State Machine Configuration"
 
 config STATE_MACHINE_USE_CPU_IDLE

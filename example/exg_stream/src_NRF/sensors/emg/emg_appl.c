@@ -121,6 +121,16 @@ int emg_init(void) {
 }
 
 int emg_start_streaming(void) {
+  #if defined(CONFIG_SENSOR_EEG)
+    LOG_ERR("EEG sensor enabled - cannot start EMG streaming");
+    return -EINVAL;
+   #endif
+
+   #if !defined(CONFIG_SENSOR_EEG) && !defined(CONFIG_SENSOR_EMG)
+    LOG_ERR("No sensor enabled - enable either EEG or EMG in Kconfig");
+    return -EINVAL;
+   #endif
+
   if (emg_state != EMG_STATE_IDLE) {
     LOG_ERR("EMG not in idle state, current state: %d", emg_state);
     return -EBUSY;
@@ -133,8 +143,11 @@ int emg_start_streaming(void) {
   emg_buf_idx = 0;
   emg_pkt_counter = 0;
 
-  LOG_INF("Powering ADS bipolar");
-  pwr_ads_on_bipolar();
+  if (power_exg_on() != 0) {
+    LOG_ERR("Power on failed - cannot start EMG streaming");
+    emg_state = EMG_STATE_ERROR;
+    return -EINVAL;
+  }
   k_msleep(300);
 
   if (first_run) {

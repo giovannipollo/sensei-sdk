@@ -135,6 +135,7 @@ int main(void) {
     LOG_INF("IMU initialized");
   }
 
+#if defined(CONFIG_SENSOR_EEG) && !defined(CONFIG_SENSOR_EMG)
   // Initialize EEG subsystem
   LOG_INF("Initializing EEG subsystem...");
   if (eeg_init() != 0) {
@@ -142,7 +143,9 @@ int main(void) {
   } else {
     LOG_INF("EEG subsystem initialized");
   }
+#endif
 
+#if defined(CONFIG_SENSOR_EMG) && !defined(CONFIG_SENSOR_EEG)
   // Initialize EMG subsystem
   LOG_INF("Initializing EMG subsystem...");
   if (emg_init() != 0) {
@@ -150,6 +153,7 @@ int main(void) {
   } else {
     LOG_INF("EMG subsystem initialized");
   }
+#endif
 
   // Initialize inter-board synchronization
   LOG_INF("Initializing board sync...");
