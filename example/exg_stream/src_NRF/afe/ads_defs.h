@@ -94,7 +94,7 @@
 /** @brief Index where sample data ends (before metadata)
  *  Calculation: Header(1) + Counter(1) + Timestamp(4) + 4×50 = 206
  */
-#define EEG_SAMPLE_DATA_END 206
+#define EXG_SAMPLE_DATA_END 206
 
 /*==============================================================================
  * IMU Packet Format Constants

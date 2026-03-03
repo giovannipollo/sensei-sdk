@@ -194,7 +194,7 @@ void ads_spim_handler_done(void) {
       ble_tx_buf[tx_buf_inx++] = 0x00; // Reserved byte for future use
     }
 
-    if (tx_buf_inx == EEG_SAMPLE_DATA_END) {
+    if (tx_buf_inx == EXG_SAMPLE_DATA_END) {
       // Check if the last pck was handled and reset flag
 
       if (pck_ble_ready == true) {
@@ -219,7 +219,7 @@ void ads_spim_handler_done(void) {
 
         // Finish up and send
         // Get the index to write metadata
-        int buf_current_size = EEG_SAMPLE_DATA_END;
+        int buf_current_size = EXG_SAMPLE_DATA_END;
 
         // Metadata bytes: board_id, sync_pulse_count, reserved
         ble_tx_buf[buf_current_size++] = board_sync_get_board_id();
