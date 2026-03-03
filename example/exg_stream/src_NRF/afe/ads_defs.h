@@ -61,7 +61,7 @@
 #define BLE_PCK_TAILER 0xAA
 
 /**
- * @brief Total EEG BLE packet length in bytes
+ * @brief Total EXG BLE packet length in bytes
  *
  * Packet structure (210 bytes total):
  * - 1 byte: Header (0x55)
@@ -74,49 +74,20 @@
  *   - 1 byte: Reserved (reserved for future use)
  * - 3 bytes: Metadata (reserved for future use)
  * - 1 byte: Trailer (0xAA)
- *
- * @note IMU data has been moved to independent IMU packets (header 0x56)
- *       to allow native 400 Hz sampling rate.
- * @note Previous packet size was 234 bytes with 4 samples × 56 bytes
- *       (including 6 bytes IMU per sample).
  */
-#define EEG_PCK_LNGTH 210
+#define EXG_PCK_LNGTH 210
 
-/** @brief Legacy alias for backward compatibility */
-#define PCK_LNGTH EEG_PCK_LNGTH
 
-/** @brief Number of EEG samples per BLE packet */
-#define EEG_SAMPLES_PER_PACKET 4
+/** @brief Number of EXG samples per BLE packet */
+#define EXG_SAMPLES_PER_PACKET 4
 
-/** @brief Bytes per EEG sample (ADS_A + ADS_B + counter_extra + reserved) */
-#define EEG_BYTES_PER_SAMPLE 50
+/** @brief Bytes per EXG sample (ADS_A + ADS_B + counter_extra + reserved) */
+#define EXG_BYTES_PER_SAMPLE 50
 
 /** @brief Index where sample data ends (before metadata)
  *  Calculation: Header(1) + Counter(1) + Timestamp(4) + 4×50 = 206
  */
 #define EXG_SAMPLE_DATA_END 206
-
-/*==============================================================================
- * IMU Packet Format Constants
- * 
- * NOTE: IMU packet constants have been moved to imu_appl.h as part of the
- * IMU refactoring. The IMU application layer now owns these definitions:
- *   - IMU_DATA_HEADER (0x56)
- *   - IMU_DATA_TRAILER (0x57)
- *   - IMU_SAMPLES_PER_PACKET (20)
- *   - IMU_BYTES_PER_SAMPLE (6)
- *   - IMU_PCKT_SIZE (127)
- *
- * For backward compatibility, legacy aliases are provided below.
- * New code should include imu_appl.h directly.
- *============================================================================*/
-
-/* Legacy aliases - prefer imu_appl.h for new code */
-#include "sensors/imu/imu_appl.h"
-
-#define BLE_IMU_HEADER    IMU_DATA_HEADER
-#define BLE_IMU_TAILER    IMU_DATA_TRAILER
-#define IMU_PCK_LNGTH     IMU_PCKT_SIZE
 
 /*==============================================================================
  * SPIM Instance Configuration

@@ -81,9 +81,6 @@
  * Utility Definitions
  *============================================================================*/
 
-/** @brief Spaces string for formatting (legacy) */
-#define SPACES "                                                               "
-
 /** @brief Success return code */
 #define NO_ERROR 0
 

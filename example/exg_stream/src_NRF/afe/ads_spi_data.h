@@ -43,7 +43,7 @@
  * Accumulates 7 samples into a complete 234-byte packet before transmission.
  * Format documented in ads_spi.h header.
  */
-extern uint8_t ble_tx_buf[PCK_LNGTH];
+extern uint8_t ble_tx_buf[EXG_PCK_LNGTH];
 
 /**
  * @brief Current write index in BLE packet buffer

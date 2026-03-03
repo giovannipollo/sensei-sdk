@@ -61,7 +61,7 @@ extern volatile bool spi_xfer_done;
 extern bool ads_initialized;
 
 /** @brief BLE transmission packet buffer */
-extern uint8_t ble_tx_buf[PCK_LNGTH];
+extern uint8_t ble_tx_buf[EXG_PCK_LNGTH];
 
 /** @brief Current write index in BLE packet buffer */
 extern uint32_t tx_buf_inx;

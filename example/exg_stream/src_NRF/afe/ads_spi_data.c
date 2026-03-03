@@ -80,7 +80,7 @@ extern uint8_t ads_rx_buf[40];
  * Accumulates 7 samples into a complete 234-byte packet before transmission.
  * Format documented in ads_spi.h header.
  */
-uint8_t ble_tx_buf[PCK_LNGTH] = {0};
+uint8_t ble_tx_buf[EXG_PCK_LNGTH] = {0};
 
 /**
  * @brief Current write index in BLE packet buffer
@@ -229,7 +229,7 @@ void ads_spim_handler_done(void) {
         // BLE PCK tail
         ble_tx_buf[buf_current_size++] = BLE_PCK_TAILER;
 
-        add_data_to_send_buffer(ble_tx_buf, EEG_PCK_LNGTH);
+        add_data_to_send_buffer(ble_tx_buf, EXG_PCK_LNGTH);
       }
     }
 

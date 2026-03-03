@@ -385,24 +385,6 @@ void start_bluetooth_adverts(void) {
   }
 }
 
-/*==============================================================================
- * Public Functions - Legacy/Unused
- *============================================================================*/
-
-void update_status(struct sensor_value *temp, struct sensor_value *press, struct sensor_value *humidity,
-                   struct sensor_value *gas_res) {
-  /* NOTE: This function is a stub and does not transmit data.
-   * See sensorShield_bme688 example for a working implementation. */
-  char temp_str[20];
-  char press_str[20];
-  char humidity_str[20];
-  char gas_res_str[20];
-
-  snprintf(temp_str, sizeof(temp_str), "%d.%06d", temp->val1, temp->val2);
-  snprintf(press_str, sizeof(press_str), "%d.%06d", press->val1, press->val2);
-  snprintf(humidity_str, sizeof(humidity_str), "%d.%06d", humidity->val1, humidity->val2);
-  snprintf(gas_res_str, sizeof(gas_res_str), "%d.%06d", gas_res->val1, gas_res->val2);
-}
 
 /*==============================================================================
  * Private Functions - BLE Write Thread

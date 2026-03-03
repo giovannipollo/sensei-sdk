@@ -335,30 +335,4 @@ void print_ble_conn_info(void);
  */
 void measure_throughput(void);
 
-/*==============================================================================
- * Function Declarations - Legacy/Unused
- *============================================================================*/
-
-/**
- * @brief Update environmental sensor status (STUB - NOT IMPLEMENTED)
- *
- * This function exists for API compatibility but does not perform any
- * useful operation in the exg_stream example. It formats sensor values
- * as strings but does not transmit or store them.
- *
- * @param temp     Temperature sensor value
- * @param press    Pressure sensor value
- * @param humidity Humidity sensor value
- * @param gas_res  Gas resistance sensor value
- *
- * @deprecated This function is not used in the exg_stream example.
- *             See sensorShield_bme688 example for a working implementation
- *             that uses Nordic Status Message Service (NSMS).
- *
- * @note Consider removing this function if not needed, or implementing
- *       proper BLE status updates if environmental sensing is required.
- */
-void update_status(struct sensor_value *temp, struct sensor_value *press,
-                   struct sensor_value *humidity, struct sensor_value *gas_res);
-
 #endif /* BLUETOOTH_H */
