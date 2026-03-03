@@ -61,9 +61,4 @@ int power_ads_off(void);
  */
 int power_exg_on(void);
 
-/* Legacy pwr_ compatibility functions */
-int pwr_ads_on_unipolar(void);
-int pwr_ads_on_bipolar(void);
-int pwr_ads_off(void);
-
 #endif /* POWER_BSP_H_ */

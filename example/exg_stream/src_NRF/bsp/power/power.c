@@ -121,11 +121,6 @@ int power_ads_on_bipolar(void) {
     return 0;
 }
 
-/* Legacy pwr_ compatibility functions */
-int pwr_ads_on_unipolar(void) { return power_ads_on_unipolar(); }
-int pwr_ads_on_bipolar(void) { return power_ads_on_bipolar(); }
-int pwr_ads_off(void) { return power_ads_off(); }
-
 int power_exg_on(void) {
 #if defined(CONFIG_SENSOR_EEG) && !defined(CONFIG_SENSOR_EMG)
     LOG_INF("EEG sensor - powering on unipolar configuration");

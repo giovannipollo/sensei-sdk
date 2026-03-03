@@ -44,11 +44,4 @@ int battery_get_status(battery_status_t *status);
  */
 int battery_update_status(void);
 
-/* Legacy bsp_ compatibility functions */
-uint32_t bsp_get_battery_soc(void);
-uint32_t bsp_get_battery_voltage(void);
-uint32_t bsp_get_total_power_mw(void);
-uint8_t bsp_is_charging(void);
-const char *bsp_get_power_source(void);
-
 #endif /* BATTERY_BSP_H_ */

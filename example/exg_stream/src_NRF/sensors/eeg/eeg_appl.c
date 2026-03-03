@@ -238,7 +238,7 @@ static void eeg_streaming_thread(void *arg1, void *arg2, void *arg3) {
       if (ret != 0) {
         LOG_ERR("Sync wait failed: %d", ret);
         eeg_state = EEG_STATE_ERROR;
-        pwr_ads_off();
+        power_ads_off();
         continue;
       }
     }
@@ -264,7 +264,7 @@ static void eeg_streaming_thread(void *arg1, void *arg2, void *arg3) {
     k_msleep(100);
     eeg_state = EEG_STATE_IDLE;
     LOG_INF("EEG state set to IDLE");
-    pwr_ads_off();
+    power_ads_off();
     LOG_INF("Powering off ADS devices");
   }
 

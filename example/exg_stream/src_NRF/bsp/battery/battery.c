@@ -102,10 +102,3 @@ int battery_get_status(battery_status_t *status) {
     status->power_source = current_power_source;
     return 0;
 }
-
-/* Legacy bsp_ compatibility functions */
-uint32_t bsp_get_battery_soc(void) { return current_soc; }
-uint32_t bsp_get_battery_voltage(void) { return current_bat_mv; }
-uint32_t bsp_get_total_power_mw(void) { return current_power_mw; }
-uint8_t bsp_is_charging(void) { return is_charging ? 1 : 0; }
-const char *bsp_get_power_source(void) { return current_power_source; }
