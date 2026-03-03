@@ -18,13 +18,6 @@ cd sensei-sdk
 git submodule update --init --recursive
 ```
 
-Install pre-commit hooks.
-
-```sh
-source scripts/install-hooks.sh
-
-```
-
 Make sure to export the following environment variables.
 
 ```sh
