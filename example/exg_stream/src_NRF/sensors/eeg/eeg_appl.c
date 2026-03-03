@@ -249,7 +249,6 @@ static void eeg_streaming_thread(void *arg1, void *arg2, void *arg3) {
     LOG_INF("ADS1298 started");
 
     eeg_state = EEG_STATE_STREAMING;
-    ads_clear_skip_reads();
     ads_set_function(ADS_READ);
 
     while (eeg_keep_running) {

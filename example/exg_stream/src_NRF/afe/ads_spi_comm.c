@@ -167,7 +167,7 @@ int ads1298_read_spi(uint8_t *data, uint8_t size, ads_device_id_t ads_id) {
  * @note Called from DRDY interrupt context via process_ads_data()
  * @note empty_buffer contains zeros for dummy TX bytes
  */
-int ads1298_read_samples_comm(uint8_t *data, uint8_t size, ads_device_id_t ads_id) {
+int ads1298_read_samples(uint8_t *data, uint8_t size, ads_device_id_t ads_id) {
   extern struct k_mutex spi_mutex;
   extern nrfx_spim_t spim_inst;
 

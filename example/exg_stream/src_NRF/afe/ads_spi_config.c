@@ -222,18 +222,10 @@ void ads_init(uint8_t *InitParams, ads_device_id_t ads_id) {
  * Sends SDATAC (Stop Data Continuous) command to both devices.
  * This halts conversion and allows register access.
  *
- * Side effects:
- * - Sets skip_reads flag to discard first 500 samples on restart
- * - Required to ensure ADC has settled before streaming valid data
- *
  * @note Does not power down the device, just stops conversions
  * @note Both devices must be stopped for synchronized operation
  */
 void ads_stop() {
-  extern bool skip_reads;
-
-  skip_reads = true; // Flag to skip the fist samples as to make sure the signal is stable.
-
   pr_word[0] = _SDATAC;
   spi_xfer_done = false;
   LOG_DBG("Stopping ADS1298 A");
@@ -252,21 +244,6 @@ void ads_stop() {
 }
 
 /**
- * @brief Clear the skip_reads flag and reset skipped sample counter
- *
- * Call this after manually waiting for ADC settling (e.g., during
- * synchronized streaming) to prevent additional sample skipping
- * in process_ads_data().
- */
-void ads_clear_skip_reads() {
-  extern bool skip_reads;
-  extern int skiped_samples;
-
-  skip_reads = false;
-  skiped_samples = 0;
-}
-
-/**
  * @brief Start synchronized data acquisition on both ADS1298 devices
  *
  * Sends START and RDATAC commands to both devices in sequence.
@@ -281,7 +258,6 @@ void ads_clear_skip_reads() {
  *
  * @note Devices are synchronized via shared START pin (if used)
  * @note DRDY interrupts will begin firing once conversion starts
- * @note First 500 samples are skipped if skip_reads flag is set
  */
 void ads_start() {
   pr_word[0] = _START;

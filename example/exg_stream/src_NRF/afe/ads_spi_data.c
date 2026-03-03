@@ -44,6 +44,7 @@
 #include "afe/ads_spi_data.h"
 #include "ble/ble_appl.h"
 #include "sensors/ppg/ppg_appl.h"
+#include "ads_spi_comm.h"
 
 /* Inter-board synchronization */
 #include "core/board_sync.h"
@@ -148,47 +149,6 @@ bool pck_ble_ready = false;
  * Used to properly route data in the interrupt callback.
  */
 volatile bool ads_to_read = ADS1298_A;
-
-/*==============================================================================
- * Module Variables - Acquisition Control
- *============================================================================*/
-
-/**
- * @brief Skip initial samples flag
- *
- * Set to true when starting acquisition. First 500 samples are discarded
- * to allow the ADC and analog front-end to settle.
- */
-bool skip_reads = true;
-
-/**
- * @brief Count of skipped samples during startup
- *
- * Incremented until reaching 500, at which point skip_reads is cleared
- * and normal data acquisition begins.
- */
-int skiped_samples = 0;
-
-/*==============================================================================
- * SPI Receive Buffer
- *============================================================================*/
-
-/**
- * @brief SPI receive buffer for ADS1298 data
- *
- * Receives data from ADS1298 during SPI transfers. Oversized to 40 bytes
- * to accommodate potential extended transfers.
- * (Declared in ads_spi_hw.c)
- */
-
-/*==============================================================================
- * Function Declarations
- *============================================================================*/
-
-/**
- * @brief Read ADC sample data in continuous mode
- */
-static int ads1298_read_samples(uint8_t *data, uint8_t size, ads_device_id_t ads_id);
 
 /*==============================================================================
  * Public Functions - Data Processing
@@ -307,63 +267,23 @@ void process_ads_data(void) {
 
     // Process received data as needed
     if (ads_get_function() == ADS_READ) {
+      if (!drdy_served) {
+        ads_set_function(ADS_STOP);
+      } else {
+        drdy_served = false;
 
-      if (skip_reads) {
-        if (skiped_samples++ == 500) {
-          skip_reads = false;
-          skiped_samples = 0;
-        }
-      }
-
-      if (!skip_reads) {
-
-        if (!drdy_served) {
-          ads_set_function(ADS_STOP);
-        } else {
-          drdy_served = false;
-
-          // Read data from ADS using SPI
-          // uint8_t rx_data[27]; // Adjust size based on your data format
-          spi_xfer_done = false;
-          ads_to_read = ADS1298_A;
-          ads1298_read_samples(ads_rx_buf, 27, ADS1298_A);
-          while (spi_xfer_done == false)
-            ;
-          spi_xfer_done = false;
-          ads_to_read = ADS1298_B;
-          ads1298_read_samples(ads_rx_buf, 27, ADS1298_B);
-          while (spi_xfer_done == false)
-            ;
-        }
+        spi_xfer_done = false;
+        ads_to_read = ADS1298_A;
+        ads1298_read_samples(ads_rx_buf, 27, ADS1298_A);
+        while (spi_xfer_done == false)
+          ;
+        spi_xfer_done = false;
+        ads_to_read = ADS1298_B;
+        ads1298_read_samples(ads_rx_buf, 27, ADS1298_B);
+        while (spi_xfer_done == false)
+          ;
       }
     }
   }
   k_sleep(K_USEC(1));
-}
-
-/*==============================================================================
- * Private Functions - Low-Level SPI Transfers
- *============================================================================*/
-
-/**
- * @brief Read ADC sample data in continuous mode
- *
- * Reads conversion data when in RDATAC (Read Data Continuous) mode.
- * Transmits dummy bytes (zeros) and receives 27 bytes of data:
- * - 3 status bytes (24-bit status word)
- * - 24 data bytes (8 channels × 3 bytes per channel)
- *
- * @param[in] data    Unused parameter (data received into ads_rx_buf)
- * @param[in] size    Number of bytes to transfer (typically 27)
- * @param[in] ads_id  Target device (ADS1298_A or ADS1298_B)
- *
- * @return 0 on success, -1 on GPIO error
- *
- * @note Called from DRDY interrupt context via process_ads_data()
- * @note empty_buffer contains zeros for dummy TX bytes
- */
-static int ads1298_read_samples(uint8_t *data, uint8_t size, ads_device_id_t ads_id) {
-  // Implementation moved to ads_spi_comm.c
-  extern int ads1298_read_samples_comm(uint8_t *data, uint8_t size, ads_device_id_t ads_id);
-  return ads1298_read_samples_comm(data, size, ads_id);
 }
