@@ -60,7 +60,7 @@
 LOG_MODULE_REGISTER(eeg_appl, LOG_LEVEL_INF);
 
 #define EEG_THREAD_STACK_SIZE 2048
-#define EEG_THREAD_PRIORITY 6
+#define EEG_THREAD_PRIORITY 5
 /*==============================================================================
  * Static Variables
  *============================================================================*/

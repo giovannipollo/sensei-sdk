@@ -33,22 +33,22 @@ dmic_dev: &pdm0 {
     clock-source = "ACLK";
 };
 
-/*
- * Inter-board synchronization GPIO
- *
- * Connect between boards:
- *   - PRIMARY board: P0.05 (output)
- *   - SECONDARY board: P0.05 (input)
- *   - Common GND between boards
- *
- * Change the pin number if P0.05 is not available on your hardware.
- */
-/ {
-    sync {
-        compatible = "gpio-keys";
-        gpio_board_sync: gpio_board_sync {
-            gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
-            label = "Board Sync Pin";
-        };
-    };
-};
+// /*
+//  * Inter-board synchronization GPIO
+//  *
+//  * Connect between boards:
+//  *   - PRIMARY board: P0.05 (output)
+//  *   - SECONDARY board: P0.05 (input)
+//  *   - Common GND between boards
+//  *
+//  * Change the pin number if P0.05 is not available on your hardware.
+//  */
+// / {
+//     sync {
+//         compatible = "gpio-keys";
+//         gpio_board_sync: gpio_board_sync {
+//             gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
+//             label = "Board Sync Pin";
+//         };
+//     };
+// };
