@@ -112,13 +112,13 @@ static struct dmic_cfg mic_cfg = {
  *
  * Continuously reads audio data from the DMIC and sends it over BLE.
  * Packet format:
- *   [header(1)][counter(1)][audio_data(128)][trailer(1)] = 131 bytes
+ *   [header(1)][counter(2)][audio_data(128)][trailer(1)] = 132 bytes
  *   64 samples × 2 bytes = 128 bytes audio, matching 4 ms EEG packet timing
  */
 static void mic_streaming_thread(void *arg1, void *arg2, void *arg3) {
   int ret;
   uint8_t ble_packet[MIC_PCKT_SIZE];
-  uint8_t packet_counter = 0;
+  uint16_t packet_counter = 0;
 
   /* Position in current packet where next samples will be written */
   int packet_sample_offset = 0;
@@ -197,7 +197,9 @@ static void mic_streaming_thread(void *arg1, void *arg2, void *arg3) {
         /* Check if packet is full */
         if (packet_sample_offset >= MIC_SAMPLES_PER_PACKET) {
           /* Complete the packet */
-          ble_packet[1] = packet_counter;
+          ble_packet[1] = (uint8_t)(packet_counter & 0xFF);
+          ble_packet[2] = (uint8_t)((packet_counter >> 8) & 0xFF);
+
           ble_packet[MIC_PCKT_SIZE - 1] = MIC_DATA_TRAILER;
 
           /* Send via BLE queue */
