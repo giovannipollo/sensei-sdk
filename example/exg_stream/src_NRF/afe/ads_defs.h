@@ -63,9 +63,9 @@
 /**
  * @brief Total EXG BLE packet length in bytes
  *
- * Packet structure (210 bytes total):
+ * Packet structure (211 bytes total):
  * - 1 byte: Header (0x55)
- * - 1 byte: Packet counter
+ * - 2 bytes: Packet counter
  * - 4 bytes: Timestamp (microseconds, for cross-packet synchronization)
  * - 200 bytes: 4 samples × 50 bytes per sample
  *   - 24 bytes: ADS1298_A data (8 channels × 3 bytes)
@@ -75,7 +75,7 @@
  * - 3 bytes: Metadata (reserved for future use)
  * - 1 byte: Trailer (0xAA)
  */
-#define EXG_PCK_LNGTH 210
+#define EXG_PCK_LNGTH 211
 
 
 /** @brief Number of EXG samples per BLE packet */
@@ -85,9 +85,9 @@
 #define EXG_BYTES_PER_SAMPLE 50
 
 /** @brief Index where sample data ends (before metadata)
- *  Calculation: Header(1) + Counter(1) + Timestamp(4) + 4×50 = 206
+ *  Calculation: Header(1) + Counter(2) + Timestamp(4) + 4×50 = 207
  */
-#define EXG_SAMPLE_DATA_END 206
+#define EXG_SAMPLE_DATA_END 207
 
 /*==============================================================================
  * SPIM Instance Configuration

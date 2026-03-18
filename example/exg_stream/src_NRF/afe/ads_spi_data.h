@@ -56,10 +56,10 @@ extern uint32_t tx_buf_inx;
 /**
  * @brief BLE packet counter
  *
- * Increments with each transmitted packet. Wraps around at 255. Used by
+ * Increments with each transmitted packet. Wraps around at 65535. Used by
  * receiver to detect packet loss.
  */
-extern uint8_t counter;
+extern uint16_t counter;
 
 /**
  * @brief Extra counter for debugging/custom data

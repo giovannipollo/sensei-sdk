@@ -76,9 +76,9 @@
 /**
  * @brief Total EEG BLE packet size in bytes
  *
- * Packet structure (210 bytes total):
+ * Packet structure (211 bytes total):
  * - 1 byte: Header (0x55)
- * - 1 byte: Packet counter
+ * - 2 bytes: Packet counter
  * - 4 bytes: Timestamp (microseconds, for cross-packet synchronization)
  * - 200 bytes: 4 samples × 50 bytes per sample
  *   - 24 bytes: ADS1298_A data (8 channels × 3 bytes)
@@ -88,7 +88,7 @@
  * - 3 bytes: Metadata (reserved for future use)
  * - 1 byte: Trailer (0xAA)
  */
-#define EEG_PCKT_SIZE 210
+#define EEG_PCKT_SIZE 211
 
 /** @brief Timeout in ms for reading EEG data */
 #define EEG_READ_TIMEOUT 100

@@ -67,7 +67,7 @@ extern uint8_t ble_tx_buf[EXG_PCK_LNGTH];
 extern uint32_t tx_buf_inx;
 
 /** @brief BLE packet counter */
-extern uint8_t counter;
+extern uint16_t counter;
 
 /*==============================================================================
  * Public Functions - Device Verification
@@ -164,7 +164,8 @@ void ads_init(uint8_t *InitParams, ads_device_id_t ads_id) {
   // buffer_counter = 0;
   tx_buf_inx = 0;
   ble_tx_buf[tx_buf_inx++] = BLE_PCK_HEADER;
-  ble_tx_buf[tx_buf_inx++] = ++counter;
+  ble_tx_buf[tx_buf_inx++] = (uint8_t)(++counter);
+  ble_tx_buf[tx_buf_inx++] = (uint8_t)(counter >> 8);
   // Reserve 4 bytes for timestamp (will be filled when packet is complete)
   tx_buf_inx += 4;
 

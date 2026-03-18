@@ -96,7 +96,7 @@ uint32_t tx_buf_inx = 0;
  * Increments with each transmitted packet. Wraps around at 255. Used by
  * receiver to detect packet loss.
  */
-uint8_t counter = 0;
+uint16_t counter = 0;
 
 /**
  * @brief Extra counter for debugging/custom data
@@ -208,7 +208,8 @@ void ads_spim_handler_done(void) {
 
         // Prepare the next buffer with header, counter, and timestamp
         ble_tx_buf[tx_buf_inx++] = BLE_PCK_HEADER;
-        ble_tx_buf[tx_buf_inx++] = ++counter;
+        ble_tx_buf[tx_buf_inx++] = (uint8_t)(++counter);
+        ble_tx_buf[tx_buf_inx++] = (uint8_t)(counter >> 8);
 
         // Add timestamp (microseconds) for cross-packet synchronization
         uint32_t timestamp_us = k_cyc_to_us_floor32(k_cycle_get_32());
