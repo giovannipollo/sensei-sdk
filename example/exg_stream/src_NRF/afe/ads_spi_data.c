@@ -206,9 +206,10 @@ void ads_spim_handler_done(void) {
         // Reset and condition BLE buffers
         tx_buf_inx = 0;
 
-        // Prepare the next buffer with header, counter, and timestamp
+        counter++;
+        // Prepare the buffer with header, counter, and timestamp
         ble_tx_buf[tx_buf_inx++] = BLE_PCK_HEADER;
-        ble_tx_buf[tx_buf_inx++] = (uint8_t)(++counter);
+        ble_tx_buf[tx_buf_inx++] = (uint8_t)(counter);
         ble_tx_buf[tx_buf_inx++] = (uint8_t)(counter >> 8);
 
         // Add timestamp (microseconds) for cross-packet synchronization
