@@ -60,7 +60,7 @@
 LOG_MODULE_REGISTER(emg_appl, LOG_LEVEL_INF);
 
 #define EMG_THREAD_STACK_SIZE 2048
-#define EMG_THREAD_PRIORITY 6
+#define EMG_THREAD_PRIORITY 5
 /*==============================================================================
  * Static Variables
  *============================================================================*/
